@@ -462,5 +462,11 @@ by default, useful in case of duplicate seqno */
 #define TSCH_CONF_RX_WAIT 2200
 #endif /* TSCH_CONF_RX_WAIT */
 
+/******** Configuration: Lora support settings *******/
+/* Extend timeslot size for Lora support */
+#ifndef TSCH_CONF_EXTEND_TS_SIZE
+#define TSCH_CONF_EXTEND_TS_SIZE 0
+#endif /* TSCH_CONF_RX_WAIT */
+
 #endif /* TSCH_CONF_H_ */
 /** @} */

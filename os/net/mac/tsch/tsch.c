@@ -94,9 +94,9 @@ uint8_t tsch_hopping_sequence[TSCH_HOPPING_SEQUENCE_MAX_LEN];
 struct tsch_asn_divisor_t tsch_hopping_sequence_length;
 
 /* Default TSCH timeslot timing (in micro-second) */
-static const uint16_t *tsch_default_timing_us;
+static const tsch_timing_t *tsch_default_timing_us;
 /* TSCH timeslot timing (in micro-second) */
-uint16_t tsch_timing_us[tsch_ts_elements_count];
+tsch_timing_t tsch_timing_us[tsch_ts_elements_count];
 /* TSCH timeslot timing (in rtimer ticks) */
 rtimer_clock_t tsch_timing[tsch_ts_elements_count];
 
