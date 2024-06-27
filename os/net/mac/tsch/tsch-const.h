@@ -31,8 +31,8 @@
  */
 
 /**
-* \addtogroup tsch
-* @{
+ * \addtogroup tsch
+ * @{
  * \file
  *         TSCH constants
  * \author
@@ -79,7 +79,7 @@
 #define TSCH_SLOTS_PER_SECOND (1000000 / tsch_timing_us[tsch_ts_timeslot_length])
 
 /* Calculate packet tx/rx duration in rtimer ticks based on packet length in bytes. */
-#ifndef
+#ifndef TSCH_PACKET_DURATION
 #define TSCH_PACKET_DURATION(len) US_TO_RTIMERTICKS(RADIO_BYTE_AIR_TIME * ((len) + RADIO_PHY_OVERHEAD))
 #endif
 

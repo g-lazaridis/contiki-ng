@@ -3,8 +3,8 @@ ifndef CONTIKI
 endif
 
 ### Board selection
-BOARD ?= dk
-BOARDS = dk dongle
+BOARD ?= wm1110-dk
+BOARDS = dk dongle wm1110-dk
 
 ### Unless the example dictates otherwise, build with code size optimisations switched off
 SMALL ?= 0
