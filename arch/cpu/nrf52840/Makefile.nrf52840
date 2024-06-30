@@ -8,6 +8,7 @@ endif
 
 NRFJPROG ?= nrfjprog
 NRFUTIL ?= nrfutil
+OPENOCD ?= openocd
 
 ifeq ($(NRF52840_USE_RTT),1)
   ### Suppress the existing debug I/O in os/lib
@@ -147,6 +148,9 @@ else
 	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --sectorerase --verify --program $<
 	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --reset
 endif
+
+%.bin: $(OUT_BIN)
+	@echo Done
 
 # Upload to all attached boards
 # This approach is similar to the sky platform
