@@ -89,6 +89,8 @@
 #define LR1110_SPI_MOSI     NRF_GPIO_PIN_MAP(1, 14)
 #define LR1110_SPI_MISO     NRF_GPIO_PIN_MAP(1, 15)
 
+#define LR11XX_SPI_INSTANCE     0
+
 /** @} */
 /*---------------------------------------------------------------------------*/
 /** @}

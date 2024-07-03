@@ -57,10 +57,6 @@
 #include "contiki.h"
 #include "dev/radio.h"
 #include "sys/energest.h"
-#include "nrf_drv_spi.h"
-/*---------------------------------------------------------------------------*/
-#define LR11XX_SPI_INSTANCE     0
-static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(LR11XX_SPI_INSTANCE);  /**< SPI instance. */
 /*---------------------------------------------------------------------------*/
 static void
 enter_rx(void)
@@ -83,22 +79,6 @@ channel_clear(void)
 static int
 init(void)
 {
-  ret_code_t ret;
-  nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
-
-  spi_config.ss_pin = LR1110_SPI_CS;
-  spi_config.miso_pin = LR1110_SPI_MISO;
-  spi_config.mosi_pin = LR1110_SPI_MOSI;
-  spi_config.sck_pin = LR1110_SPI_SCK;
-  spi_config.orc = 0x00;
-
-  ret = nrf_drv_spi_init(&spi, &spi_config, NULL, NULL);
-
-  if(ret != NRF_SUCCESS) {
-    return RADIO_TX_ERR;
-  }
-
-  /*TODO, configure reset and busy gpios */
 
   return RADIO_TX_OK;
 }
@@ -130,13 +110,13 @@ read_frame(void *buf, unsigned short bufsize)
 static int
 receiving_packet(void)
 {
-  return NRF52840_RECEIVING_NO;
+  return 0;
 }
 /*---------------------------------------------------------------------------*/
 static int
 pending_packet(void)
 {
-  return NRF52840_PENDING_NO;
+  return 0;
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -144,7 +124,7 @@ off(void)
 {
   ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 
-  return NRF52840_COMMAND_OK;
+  return 0;
 }
 /*---------------------------------------------------------------------------*/
 static radio_result_t

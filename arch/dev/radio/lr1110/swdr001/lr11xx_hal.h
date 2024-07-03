@@ -80,6 +80,13 @@ typedef enum lr11xx_hal_status_e {
  * --- PUBLIC FUNCTIONS PROTOTYPES ---------------------------------------------
  */
 
+/**
+ * @brief Initializes hal peripherals
+ *
+ * @return Operation status
+ */
+lr11xx_hal_status_t lr11xx_hal_init(void);
+
 /*!
  * @brief Radio data transfer - write
  *
