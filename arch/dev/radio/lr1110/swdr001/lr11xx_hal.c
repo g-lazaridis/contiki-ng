@@ -11,13 +11,28 @@
 
 #include "lr11xx_hal.h"
 #include "nrf_drv_spi.h"
+#include "watchdog.h"
 /*---------------------------------------------------------------------------*/
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "LR11XX-HAL"
 #define LOG_LEVEL LOG_LEVEL_INFO
 /*---------------------------------------------------------------------------*/
+#define USEC_BUSY_TIMEOUT     10000
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(LR11XX_SPI_INSTANCE);  /**< SPI instance. */
+/*---------------------------------------------------------------------------*/
+static inline int
+wait_until_not_busy(void)
+{
+  uint16_t timeout_us = USEC_BUSY_TIMEOUT;
+  while(nrf_gpio_pin_read(LR1110_BUSY) && timeout_us) {
+    watchdog_periodic();
+    clock_delay_usec(10);
+    timeout_us -= 10;
+  }
+
+  return timeout_us ? 0 : -1;
+}
 /*---------------------------------------------------------------------------*/
 lr11xx_hal_status_t
 lr11xx_hal_init(void)
@@ -34,16 +49,18 @@ lr11xx_hal_init(void)
   ret = nrf_drv_spi_init(&spi, &spi_config, NULL, NULL);
 
   if(ret != NRF_SUCCESS) {
-    LOG_ERR("lr11xx_hal_init: Failed to initialize spi\n")
+    LOG_ERR("lr11xx_hal_init: Failed to initialize spi\n");
     return LR11XX_HAL_STATUS_ERROR;
   }
 
   /* Set busy pin as input */
   nrf_gpio_cfg_input(LR1110_BUSY, NRF_GPIO_PIN_NOPULL);
 
-  /* Set reset pin as output */
+  /* Set reset pin as output, cs pin is configured from te spi driver */
   nrf_gpio_cfg_input(LR1110_NRESET, NRF_GPIO_PIN_NOPULL);
   nrf_gpio_pin_set(LR1110_NRESET);
+
+  LOG_INFO("lr11xx_hal_init: lrx11xx hal initialized successfully\n");
 
   return LR11XX_HAL_STATUS_OK;
 }
@@ -54,6 +71,11 @@ lr11xx_hal_write(const void *context, const uint8_t *command, const uint16_t com
 {
 
   ret_code_t ret;
+
+  if(wait_until_not_busy()) {
+    LOG_ERR("lr11xx_hal_write: Device is busy\n");
+    return LR11XX_HAL_STATUS_ERROR;
+  }
 
   if(command && command_length) {
     ret = nrf_drv_spi_transfer(&spi, command, command_length, NULL, 0);
@@ -66,11 +88,77 @@ lr11xx_hal_write(const void *context, const uint8_t *command, const uint16_t com
   if(data && data_length) {
     ret = nrf_drv_spi_transfer(&spi, data, data_length, NULL, 0);
     if(ret != NRF_SUCCESS) {
-      LOG_ERR("lr11xx_hal_write: Failed to data\n");
+      LOG_ERR("lr11xx_hal_write: Failed to write data\n");
       return LR11XX_HAL_STATUS_ERROR;
     }
   }
 
+  return LR11XX_HAL_STATUS_OK;
+}
+/*---------------------------------------------------------------------------*/
+lr11xx_hal_status_t
+lr11xx_hal_read(const void *context, const uint8_t *command, const uint16_t command_length,
+                uint8_t *data, const uint16_t data_length)
+{
+  ret_code_t ret;
+
+  if(wait_until_not_busy()) {
+    LOG_ERR("lr11xx_hal_read: Device is busy\n");
+    return LR11XX_HAL_STATUS_ERROR;
+  }
+
+  if(command && command_length) {
+    ret = nrf_drv_spi_transfer(&spi, command, command_length, NULL, 0);
+    if(ret != NRF_SUCCESS) {
+      LOG_ERR("lr11xx_hal_read: Failed to write command part\n");
+      return LR11XX_HAL_STATUS_ERROR;
+    }
+    if(wait_until_not_busy()) {
+      LOG_ERR("lr11xx_hal_read: Device is busy\n");
+      return LR11XX_HAL_STATUS_ERROR;
+    }
+  }
+
+  if(data && data_length) {
+    ret = nrf_drv_spi_transfer(&spi, NULL, 0, data, data_length);
+    if(ret != NRF_SUCCESS) {
+      LOG_ERR("lr11xx_hal_read: Failed to read data\n");
+      return LR11XX_HAL_STATUS_ERROR;
+    }
+  }
+
+  return LR11XX_HAL_STATUS_OK;
+}
+/*---------------------------------------------------------------------------*/
+lr11xx_hal_status_t
+lr11xx_hal_direct_read(const void *context, uint8_t *data, const uint16_t data_length)
+{
+  return lr11xx_hal_read(context, NULL, 0, data, data_length);
+}
+/*---------------------------------------------------------------------------*/
+lr11xx_hal_status_t
+lr11xx_hal_reset(const void *context)
+{
+  LOG_INFO("lr11xx_hal_reset: Reseting...\n");
+  nrf_gpio_pin_clear(LR1110_NRESET);
+  clock_delay_usec(200);
+  nrf_gpio_pin_set(LR1110_NRESET);
+  return LR11XX_HAL_STATUS_OK;
+}
+/*---------------------------------------------------------------------------*/
+lr11xx_hal_status_t
+lr11xx_hal_wakeup(const void *context)
+{
+  LOG_INFO("lr11xx_hal_wakeup: Waking up...\n");
+  nrf_gpio_pin_clear(LR1110_SPI_CS);
+  clock_delay_usec(200);
+  nrf_gpio_pin_set(LR1110_SPI_CS);
+  return LR11XX_HAL_STATUS_OK;
+}
+/*---------------------------------------------------------------------------*/
+lr11xx_hal_status_t
+lr11xx_hal_abort_blocking_cmd(const void *context)
+{
   return LR11XX_HAL_STATUS_OK;
 }
 /*---------------------------------------------------------------------------*/

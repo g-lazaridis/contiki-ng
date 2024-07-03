@@ -57,11 +57,7 @@
 #include "contiki.h"
 #include "dev/radio.h"
 #include "sys/energest.h"
-/*---------------------------------------------------------------------------*/
-static void
-enter_rx(void)
-{
-}
+#include "lr11xx_hal.h"
 /*---------------------------------------------------------------------------*/
 static int
 on(void)
@@ -79,6 +75,10 @@ channel_clear(void)
 static int
 init(void)
 {
+
+  if(lr11xx_hal_init()) {
+    return RADIO_TX_ERR;
+  }
 
   return RADIO_TX_OK;
 }

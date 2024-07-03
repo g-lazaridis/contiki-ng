@@ -10,16 +10,17 @@
  */
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
+#include "lr11xx_hal.h"
 /*---------------------------------------------------------------------------*/
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "HELLO-WORLD"
 #define LOG_LEVEL LOG_LEVEL_INFO
 /*---------------------------------------------------------------------------*/
-PROCESS(hello_world_process, "Hello world");
-AUTOSTART_PROCESSES(&hello_world_process);
+PROCESS(playground_process, "Playground");
+AUTOSTART_PROCESSES(&playground_process);
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(hello_world_process, ev, data)
+PROCESS_THREAD(playground_process, ev, data)
 {
   static struct etimer et;
 
