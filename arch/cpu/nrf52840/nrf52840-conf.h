@@ -2,7 +2,7 @@
 #ifndef NRF52840_CONF_H_
 #define NRF52840_CONF_H_
 /*---------------------------------------------------------------------------*/
-#define NETSTACK_CONF_RADIO        nrf52840_ieee_driver
+#define NETSTACK_CONF_RADIO        lr11xx_lora_driver/*nrf52840_ieee_driver */
 /*---------------------------------------------------------------------------*/
 #ifndef UART0_CONF_BAUD_RATE
 #define UART0_CONF_BAUD_RATE       NRF_UART_BAUDRATE_115200

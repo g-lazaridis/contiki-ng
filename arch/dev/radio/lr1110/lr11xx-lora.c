@@ -58,6 +58,14 @@
 #include "dev/radio.h"
 #include "sys/energest.h"
 #include "lr11xx_hal.h"
+#include "lr11xx_types.h"
+#include "lr11xx_system.h"
+#include "lr11xx_system_types.h"
+/*---------------------------------------------------------------------------*/
+/* Log configuration */
+#include "sys/log.h"
+#define LOG_MODULE "LR11XX-LORA"
+#define LOG_LEVEL LOG_LEVEL_INFO
 /*---------------------------------------------------------------------------*/
 static int
 on(void)
@@ -76,7 +84,15 @@ static int
 init(void)
 {
 
+  lr11xx_status_t status;
+
   if(lr11xx_hal_init()) {
+    return RADIO_TX_ERR;
+  }
+
+  status = lr11xx_system_set_standby(NULL, LR11XX_SYSTEM_STANDBY_CFG_XOSC);
+  if(status != LR11XX_STATUS_OK) {
+    LOG_ERR("init: Failed to set standby configuration\n");
     return RADIO_TX_ERR;
   }
 
