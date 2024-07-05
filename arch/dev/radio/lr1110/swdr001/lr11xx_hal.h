@@ -85,7 +85,7 @@ typedef enum lr11xx_hal_status_e {
  *
  * @return Operation status
  */
-lr11xx_hal_status_t lr11xx_hal_init(void);
+/* lr11xx_hal_status_t lr11xx_hal_init(void); */
 
 /*!
  * @brief Radio data transfer - write

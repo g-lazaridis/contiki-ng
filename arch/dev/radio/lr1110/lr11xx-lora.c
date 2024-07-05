@@ -61,11 +61,17 @@
 #include "lr11xx_types.h"
 #include "lr11xx_system.h"
 #include "lr11xx_system_types.h"
+#include "nrf_gpio.h"
+#include "nrf_gpiote.h"
+#include "nrf_drv_gpiote.h"
+#include "nrf_drv_spi.h"
 /*---------------------------------------------------------------------------*/
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "LR11XX-LORA"
 #define LOG_LEVEL LOG_LEVEL_INFO
+/*---------------------------------------------------------------------------*/
+static void lr11xx_irq_callback(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
 /*---------------------------------------------------------------------------*/
 static int
 on(void)
@@ -84,17 +90,52 @@ static int
 init(void)
 {
 
-  lr11xx_status_t status;
+  /* lr11xx_status_t status; */
+  nrf_drv_gpiote_in_config_t irq_config;
+  nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
 
-  if(lr11xx_hal_init()) {
-    return RADIO_TX_ERR;
-  }
+  /* re-power up LR1110 */
+  nrf_gpio_cfg_output(LR1110_NRESET_PIN);
+  nrf_gpio_pin_clear(LR1110_NRESET_PIN);
 
-  status = lr11xx_system_set_standby(NULL, LR11XX_SYSTEM_STANDBY_CFG_XOSC);
-  if(status != LR11XX_STATUS_OK) {
-    LOG_ERR("init: Failed to set standby configuration\n");
-    return RADIO_TX_ERR;
-  }
+  nrf_gpio_cfg_output(LR1110_SPI_CS_PIN);
+  nrf_gpio_pin_clear(LR1110_SPI_CS_PIN);
+
+  nrf_gpio_cfg_output(LR1110_SPI_MISO_PIN);
+  nrf_gpio_pin_clear(LR1110_SPI_MISO_PIN);
+
+  nrf_gpio_cfg_output(LR1110_SPI_MOSI_PIN);
+  nrf_gpio_pin_clear(LR1110_SPI_MOSI_PIN);
+
+  nrf_gpio_cfg_output(LR1110_SPI_SCK_PIN);
+  nrf_gpio_pin_clear(LR1110_SPI_SCK_PIN);
+
+  nrf_gpio_cfg_output(LR1110_BUSY_PIN);
+  nrf_gpio_pin_clear(LR1110_BUSY_PIN);
+
+  clock_wait(CLOCK_SECOND / 2);
+
+  /* Set-up GPIOS*/
+  nrf_gpio_pin_set(LR1110_SPI_CS_PIN);
+  nrf_gpio_cfg_input(LR1110_BUSY_PIN, NRF_GPIO_PIN_NOPULL);
+
+  nrf_drv_gpiote_init();
+  irq_config.hi_accuracy = false;
+  irq_config.is_watcher = false;
+  irq_config.skip_gpio_setup = false;
+  irq_config.pull = NRF_GPIO_PIN_PULLDOWN;
+  irq_config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
+
+  nrf_drv_gpiote_in_init(LR1110_IRQ_PIN, &irq_config, lr11xx_irq_callback);
+
+  nrf_gpio_pin_set(LR1110_NRESET_PIN);
+
+  spi_config.ss_pin = LR1110_SPI_CS_PIN;
+  spi_config.miso_pin = LR1110_SPI_MISO_PIN;
+  spi_config.mosi_pin = LR1110_SPI_MOSI_PIN;
+  spi_config.sck_pin = LR1110_SPI_SCK_PIN;
+  spi_config.orc = LR11XX_NOP;
+  nrf_drv_spi_init(&spi, &spi_config, NULL, NULL);
 
   return RADIO_TX_OK;
 }
@@ -184,4 +225,9 @@ const struct radio_driver lr11xx_lora_driver = {
   get_object,
   set_object
 };
+/*---------------------------------------------------------------------------*/
+static void
+lr11xx_irq_callback(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+}
 /*---------------------------------------------------------------------------*/

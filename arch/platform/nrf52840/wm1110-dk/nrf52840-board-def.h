@@ -73,21 +73,25 @@
  * @{
  */
 
-#define NRF_UART0_TX_PIN TX_PIN_NUMBER
+#define NRF_UART0_TX_PIN TX_PIN_NUMBER0
 #define NRF_UART0_RX_PIN RX_PIN_NUMBER
+
+#define NRF52_DEBUG_UARTE0
 
 /**
  * @brief Pinout connections between NRF and LR1110 inside WM1110 chip.
  *
  */
 
-#define LR1110_NRESET       NRF_GPIO_PIN_MAP(1, 10)
-#define LR1110_BUSY         NRF_GPIO_PIN_MAP(1, 11)
+#define LR1110_NRESET_PIN       NRF_GPIO_PIN_MAP(1, 10)
+#define LR1110_BUSY_PIN         NRF_GPIO_PIN_MAP(1, 11)
 
-#define LR1110_SPI_CS       NRF_GPIO_PIN_MAP(1, 12)
-#define LR1110_SPI_SCK      NRF_GPIO_PIN_MAP(1, 13)
-#define LR1110_SPI_MOSI     NRF_GPIO_PIN_MAP(1, 14)
-#define LR1110_SPI_MISO     NRF_GPIO_PIN_MAP(1, 15)
+#define LR1110_SPI_CS_PIN       NRF_GPIO_PIN_MAP(1, 12)
+#define LR1110_SPI_SCK_PIN      NRF_GPIO_PIN_MAP(1, 13)
+#define LR1110_SPI_MOSI_PIN     NRF_GPIO_PIN_MAP(1, 14)
+#define LR1110_SPI_MISO_PIN     NRF_GPIO_PIN_MAP(1, 15)
+
+#define LR1110_IRQ_PIN           NRF_GPIO_PIN_MAP(1, 8)
 
 #define LR11XX_SPI_INSTANCE     0
 
