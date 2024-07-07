@@ -802,6 +802,17 @@
 
 /* </e> */
 
+#ifndef NRFX_UARTE_ENABLED
+#define NRFX_UARTE_ENABLED 0
+#endif
+
+#ifndef NRFX_UARTE0_ENABLED
+#define NRFX_UARTE0_ENABLED 0
+#endif
+
+#ifndef NRFX_UARTE1_ENABLED
+#define NRFX_UARTE1_ENABLED 0
+#endif
 /* <e> WDT_ENABLED - nrf_drv_wdt - WDT peripheral driver - legacy layer */
 /*========================================================== */
 #ifndef WDT_ENABLED

@@ -58,7 +58,7 @@ CONTIKI_CPU_DIRS += . dev rf usb
 CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c uart0.c dbg.c watchdog.c
 CONTIKI_CPU_SOURCEFILES += int-master.c slip-arch.c gpio-hal-arch.c spi-arch.c
 CONTIKI_CPU_SOURCEFILES += nrf52840-ieee.c
-CONTIKI_CPU_SOURCEFILES += uarte.c uarte0.c uarte1.c
+#CONTIKI_CPU_SOURCEFILES += uarte.c uarte0.c uarte1.c
 
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 

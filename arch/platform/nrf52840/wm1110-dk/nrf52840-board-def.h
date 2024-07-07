@@ -73,10 +73,18 @@
  * @{
  */
 
-#define NRF_UART0_TX_PIN TX_PIN_NUMBER0
+#define NRF_UART0_TX_PIN TX_PIN_NUMBER
 #define NRF_UART0_RX_PIN RX_PIN_NUMBER
 
-#define NRF52_DEBUG_UARTE0
+#define NRF_UARTE0_TX_PIN TX_PIN_NUMBER
+#define NRF_UARTE0_RX_PIN RX_PIN_NUMBER
+
+// #define NRF_UARTE1_TX_PIN
+// #define NRF_UARTE2_RX_PIN
+
+#define NRF52_DEBUG_UARTE0      UART_RATE_115200
+
+#define UARTE0_CONF_BAUD_RATE       UART_RATE_115200
 
 /**
  * @brief Pinout connections between NRF and LR1110 inside WM1110 chip.

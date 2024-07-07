@@ -13,6 +13,7 @@
 #define UART_ARCH_H
 #include "nrf52840-board-def.h"
 #include "uarte.h"
+#include "nrf_uarte.h"
 #include "usb-serial.h"
 /*---------------------------------------------------------------------------*/
 /* Configure debug interface */
