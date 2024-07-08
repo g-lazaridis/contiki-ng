@@ -65,6 +65,8 @@ lr11xx_reset(void)
   nrf_gpio_pin_clear(LR1110_NRESET_PIN);
   clock_delay_usec(200);
   nrf_gpio_pin_set(LR1110_NRESET_PIN);
+  // Wait until internal lr11xx fw is ready
+  clock_wait(CLOCK_SECOND / 4);
 }
 /*---------------------------------------------------------------------------*/
 #endif /* LR11XX_H_ */
