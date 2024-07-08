@@ -13,6 +13,8 @@
 #include "lr11xx_hal.h"
 #include "lr11xx_bootloader_types.h"
 #include "lr11xx_bootloader.h"
+#include "lr1110_transceiver_0401.h"
+#include "lr11xx_crypto_engine.h"
 #include "netstack.h"
 /*---------------------------------------------------------------------------*/
 /* Log configuration */
@@ -27,6 +29,7 @@ PROCESS_THREAD(playground_process, ev, data)
 {
   static struct etimer et;
   static lr11xx_bootloader_version_t version;
+  static bool image_valid;
   lr11xx_status_t status;
 
   PROCESS_BEGIN();
@@ -43,6 +46,27 @@ PROCESS_THREAD(playground_process, ev, data)
   } else {
     LOG_ERR("Failed to get version\n");
   }
+
+  LOG_INFO("Validateing fw image...\n");
+  lr11xx_crypto_check_encrypted_firmware_image_full(NULL, 0, lr11xx_firmware_image, LR11XX_FIRMWARE_IMAGE_SIZE);
+  lr11xx_crypto_get_check_encrypted_firmware_image_result(NULL, &image_valid);
+  if(image_valid) {
+    LOG_INFO("Image validation successfull!!");
+  } else {
+    LOG_ERR("Image validation failed\n");
+  }
+  // //Reset and set to bootloader
+  // lr11xx_bootloader_reboot(NULL, true);
+  // //Wait for reboot
+  // etimer_set(&et, CLOCK_SECOND * 1);
+  // PROCESS_WAIT_EVENT();
+  // //Check if in bootloader state
+  // lr11xx_bootloader_get_version(NULL, &version);
+  // if(version.type == 0xdf) {
+  //   LOG_INFO("Bootloader state entered!!\n");
+  // } else {
+  //   LOG_ERR("Failed to enter bootloader state\n");
+  // }
 
   while(1) {
     PROCESS_WAIT_EVENT();
