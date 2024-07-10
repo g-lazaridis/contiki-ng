@@ -54,8 +54,6 @@ lr11xx_hal_write(const void *context, const uint8_t *command, const uint16_t com
 
   status = critical_enter();
 
-  lr11xx_spi_transfer(command, command_length, NULL, 0);
-
   if(command && command_length) {
     lr11xx_spi_transfer(command, command_length, NULL, 0);
   }
@@ -120,7 +118,9 @@ lr11xx_hal_read(const void *context, const uint8_t *command, const uint16_t comm
 lr11xx_hal_status_t
 lr11xx_hal_direct_read(const void *context, uint8_t *data, const uint16_t data_length)
 {
-  return lr11xx_hal_read(context, NULL, 0, data, data_length);
+  lr11xx_spi_read(data, data_length);
+  return LR11XX_HAL_STATUS_OK;
+  // return lr11xx_hal_read(context, NULL, 0, data, data_length);
 }
 /*---------------------------------------------------------------------------*/
 lr11xx_hal_status_t

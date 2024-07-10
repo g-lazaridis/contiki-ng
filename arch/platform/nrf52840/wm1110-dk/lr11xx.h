@@ -27,6 +27,8 @@ void lr11xx_wake(void);
 __STATIC_INLINE
 void lr11xx_reset(void);
 
+void lr11xx_spi_read(uint8_t *data, const uint16_t data_length);
+
 void lr11xx_spi_uninit(void);
 
 void lr11xx_spi_init(void);

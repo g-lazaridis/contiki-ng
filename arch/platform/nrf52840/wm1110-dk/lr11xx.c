@@ -17,10 +17,35 @@
 /*---------------------------------------------------------------------------*/
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(LR11XX_SPI_INSTANCE);  /**< SPI instance. */
 /*---------------------------------------------------------------------------*/
+static uint8_t
+spi_in_out(const uint16_t out_data)
+{
+  uint8_t tv = 0, rv = 0;
+
+  tv = (uint8_t)(out_data & 0xFF);
+
+  nrf_drv_spi_xfer_desc_t xfer_desc = { .p_tx_buffer = (uint8_t *)(&tv), .tx_length = 1,
+                                        .p_tx_buffer = &rv, .rx_length = 1 };
+  // xfer_desc = NRF_DRV_SPI_XFER_TRX((uint8_t *)(&tv), 1, (uint8_t *)(&rv), 1);
+  nrf_drv_spi_xfer(&spi, &xfer_desc, NRF_DRV_SPI_FLAG_NO_XFER_EVT_HANDLER);
+  // nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX((uint8_t *)(&tv), 1, (uint8_t *)(&rv), 1);
+  // nrfx_spim_xfer(&spi, &xfer_desc, NRFX_SPIM_FLAG_NO_XFER_EVT_HANDLER);
+
+  return rv;
+}
+/*---------------------------------------------------------------------------*/
 void
 lr11xx_spi_transfer(const void *out, uint16_t out_len, void *in, uint16_t in_len)
 {
   nrf_drv_spi_transfer(&spi, out, out_len, in, in_len);
+}
+/*---------------------------------------------------------------------------*/
+void
+lr11xx_spi_read(uint8_t *data, const uint16_t data_length)
+{
+  for(int i = 0; i < data_length; i++) {
+    data[i] = spi_in_out(LR11XX_NOP);
+  }
 }
 /*---------------------------------------------------------------------------*/
 void
