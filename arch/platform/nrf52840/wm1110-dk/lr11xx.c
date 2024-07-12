@@ -11,9 +11,15 @@
 // /*---------------------------------------------------------------------------*/
 #include "nrf_drv_spi.h"
 #include "lr11xx_hal.h"
+#include "lr11xx_bootloader.h"
+#include "lr11xx_crypto_engine.h"
 #include "lr11xx.h"
 #include "nrf_gpio.h"
 #include "contiki.h"
+/*---------------------------------------------------------------------------*/
+#include "sys/log.h"
+#define LOG_MODULE "LR11XX"
+#define LOG_LEVEL LOG_LEVEL_INFO
 /*---------------------------------------------------------------------------*/
 static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(LR11XX_SPI_INSTANCE);  /**< SPI instance. */
 /*---------------------------------------------------------------------------*/
@@ -67,7 +73,36 @@ lr11xx_spi_init(void)
 
   nrf_drv_spi_init(&spi, &spi_config, NULL, NULL);
 }
-// /*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+void
+lr11xx_enter_bootloader_mode(void)
+{
+  nrf_gpio_cfg_output(LR1110_BUSY_PIN);
+  nrf_gpio_pin_clear(LR1110_BUSY_PIN);
+  lr11xx_reset();
+
+  clock_wait(CLOCK_SECOND / 2);
+
+  /* Set-up GPIOS*/
+  nrf_gpio_pin_set(LR1110_SPI_CS_PIN);
+  nrf_gpio_cfg_input(LR1110_BUSY_PIN, NRF_GPIO_PIN_NOPULL);
+  lr11xx_wait_busy();
+}
+/*---------------------------------------------------------------------------*/
+int
+lr11xx_firmware_update(const uint32_t *fw_image, uint32_t image_size)
+{
+  static bool image_valid;
+
+  LOG_INFO("Validateing fw image...\n");
+  lr11xx_crypto_check_encrypted_firmware_image_full(NULL, 0, fw_image, image_size);
+  lr11xx_crypto_get_check_encrypted_firmware_image_result(NULL, &image_valid);
+
+  if(!image_valid) {
+    LOG_ERROR("Image validation failed\n");
+  }
+}
+/*---------------------------------------------------------------------------*/
 void
 lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler)
 {

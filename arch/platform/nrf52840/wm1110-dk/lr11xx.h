@@ -35,6 +35,8 @@ void lr11xx_spi_init(void);
 
 void lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler);
 
+void lr11xx_enter_bootloader_mode(void);
+
 void lr11xx_spi_transfer(const void *out, uint16_t out_len, void *in, uint16_t in_len);
 /*---------------------------------------------------------------------------*/
 __STATIC_INLINE
