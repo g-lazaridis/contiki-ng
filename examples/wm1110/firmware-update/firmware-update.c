@@ -28,24 +28,24 @@
 PROCESS(playground_process, "Playground");
 AUTOSTART_PROCESSES(&playground_process);
 /*---------------------------------------------------------------------------*/
-static void
-print_status(lr11xx_bootloader_stat1_t *stat1,
-             lr11xx_bootloader_stat2_t *stat2,
-             lr11xx_bootloader_irq_mask_t *irq_status)
-{
-  LOG_INFO("Stat1:\n\tcommand status = %d\n\tis_interrupt_active = %d\n", stat1->command_status, stat1->is_interrupt_active);
-  LOG_INFO("Stat2:\n\treset status = %d\n\tchip mode = %d\n\tis running from flash = %d\n",
-           stat2->reset_status, stat2->chip_mode, stat2->is_running_from_flash);
-  LOG_INFO("Irq Status = 0x%04lX\n", *irq_status);
-}
+// static void
+// print_status(lr11xx_bootloader_stat1_t *stat1,
+//              lr11xx_bootloader_stat2_t *stat2,
+//              lr11xx_bootloader_irq_mask_t *irq_status)
+// {
+//   LOG_INFO("Stat1:\n\tcommand status = %d\n\tis_interrupt_active = %d\n", stat1->command_status, stat1->is_interrupt_active);
+//   LOG_INFO("Stat2:\n\treset status = %d\n\tchip mode = %d\n\tis running from flash = %d\n",
+//            stat2->reset_status, stat2->chip_mode, stat2->is_running_from_flash);
+//   LOG_INFO("Irq Status = 0x%04lX\n", *irq_status);
+// }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(playground_process, ev, data)
 {
   static struct etimer et;
-  static lr11xx_bootloader_version_t version;
-  lr11xx_bootloader_stat1_t stat1;
-  lr11xx_bootloader_stat2_t stat2;
-  lr11xx_bootloader_irq_mask_t irq_status;
+  // static lr11xx_bootloader_version_t version;
+  // lr11xx_bootloader_stat1_t stat1;
+  // lr11xx_bootloader_stat2_t stat2;
+  // lr11xx_bootloader_irq_mask_t irq_status;
   // static bool image_valid;
   // lr11xx_status_t status;
   // lr11xx_system_errors_t errors;
@@ -55,7 +55,8 @@ PROCESS_THREAD(playground_process, ev, data)
   etimer_set(&et, CLOCK_SECOND * 3);
   PROCESS_WAIT_EVENT();
   NETSTACK_RADIO.init();
-  LOG_INFO("Reading version\n");
+  lr11xx_firmware_update(lr11xx_firmware_image, LR11XX_FIRMWARE_IMAGE_SIZE);
+  // LOG_INFO("Reading version\n");
   // status = lr11xx_bootloader_get_version(NULL, &version);
   // if(status == LR11XX_STATUS_OK) {
   //   LOG_INFO("HW Version = %u\n", version.hw);
@@ -72,7 +73,7 @@ PROCESS_THREAD(playground_process, ev, data)
 
   // LOG_INFO("Entering bootloader...\n");
   // lr11xx_enter_bootloader_mode();
-  lr11xx_bootloader_get_version(NULL, &version);
+  // lr11xx_bootloader_get_version(NULL, &version);
   // if(status == LR11XX_STATUS_OK) {
   //   LOG_INFO("HW Version = %u\n", version.hw);
   //   LOG_INFO("FW Version = %02u.%02u\n", (uint8_t)(version.fw >> 8), (uint8_t)(version.fw));
@@ -81,31 +82,31 @@ PROCESS_THREAD(playground_process, ev, data)
   //   LOG_ERR("Failed to get version\n");
   // }
 
-  if(version.type == 0xdf) {
-    LOG_INFO("Entered bootloader state!\n");
-    // LOG_INFO("Erasing flash");
-    // lr11xx_bootloader_erase_flash(NULL);
-    LOG_INFO("Writing new firmware...\n");
-    lr11xx_bootloader_write_flash_encrypted_full(NULL, 0, lr11xx_firmware_image, LR11XX_FIRMWARE_IMAGE_SIZE);
-    // LOG_INFO("Status = %d\n", status);
-    // lr11xx_bootloader_get_status(NULL, &stat1, &stat2, &irq_status);
-    // print_status(&stat1, &stat2, &irq_status);
-    LOG_INFO("Firmware written, restarting...\n");
-    etimer_set(&et, 5 * CLOCK_SECOND);
-    PROCESS_WAIT_EVENT();
-    lr11xx_bootloader_reboot(NULL, false);
-    etimer_set(&et, CLOCK_SECOND);
-    PROCESS_WAIT_EVENT();
-    lr11xx_bootloader_get_status(NULL, &stat1, &stat2, &irq_status);
-    print_status(&stat1, &stat2, &irq_status);
-    // lr11xx_reset();
-    lr11xx_bootloader_get_version(NULL, &version);
-    LOG_INFO("HW Version = %u\n", version.hw);
-    LOG_INFO("FW Version = %02u.%02u\n", (uint8_t)(version.fw >> 8), (uint8_t)(version.fw));
-    LOG_INFO("Type = %u\n", version.type);
-  } else {
-    LOG_INFO("Failed to enter bootloader mode, type = %d\n", version.type);
-  }
+  // if(version.type == 0xdf) {
+  //   LOG_INFO("Entered bootloader state!\n");
+  //   // LOG_INFO("Erasing flash");
+  //   // lr11xx_bootloader_erase_flash(NULL);
+  //   LOG_INFO("Writing new firmware...\n");
+  //   lr11xx_bootloader_write_flash_encrypted_full(NULL, 0, lr11xx_firmware_image, LR11XX_FIRMWARE_IMAGE_SIZE);
+  //   // LOG_INFO("Status = %d\n", status);
+  //   // lr11xx_bootloader_get_status(NULL, &stat1, &stat2, &irq_status);
+  //   // print_status(&stat1, &stat2, &irq_status);
+  //   LOG_INFO("Firmware written, restarting...\n");
+  //   etimer_set(&et, 5 * CLOCK_SECOND);
+  //   PROCESS_WAIT_EVENT();
+  //   lr11xx_bootloader_reboot(NULL, false);
+  //   etimer_set(&et, CLOCK_SECOND);
+  //   PROCESS_WAIT_EVENT();
+  //   lr11xx_bootloader_get_status(NULL, &stat1, &stat2, &irq_status);
+  //   print_status(&stat1, &stat2, &irq_status);
+  //   // lr11xx_reset();
+  //   lr11xx_bootloader_get_version(NULL, &version);
+  //   LOG_INFO("HW Version = %u\n", version.hw);
+  //   LOG_INFO("FW Version = %02u.%02u\n", (uint8_t)(version.fw >> 8), (uint8_t)(version.fw));
+  //   LOG_INFO("Type = %u\n", version.type);
+  // } else {
+  //   LOG_INFO("Failed to enter bootloader mode, type = %d\n", version.type);
+  // }
 
   // LOG_INFO("Clearing IRQs\n");
   // lr11xx_system_clear_irq_status(NULL, 0xFFFF);

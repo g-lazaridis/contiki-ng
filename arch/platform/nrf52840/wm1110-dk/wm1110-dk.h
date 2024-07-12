@@ -76,8 +76,10 @@ extern "C" {
 #define BSP_BUTTON_0   BUTTON_1
 #define BSP_BUTTON_1   BUTTON_2
 
-#define RX_PIN_NUMBER  22
-#define TX_PIN_NUMBER  24
+// #define RX_PIN_NUMBER  22
+// #define TX_PIN_NUMBER  24
+#define RX_PIN_NUMBER  19
+#define TX_PIN_NUMBER  20
 #define HWFC           false
 
 #ifdef __cplusplus

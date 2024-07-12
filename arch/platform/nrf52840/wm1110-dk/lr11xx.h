@@ -37,6 +37,8 @@ void lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler);
 
 void lr11xx_enter_bootloader_mode(void);
 
+int lr11xx_firmware_update(const uint32_t *fw_image, uint32_t image_size);
+
 void lr11xx_spi_transfer(const void *out, uint16_t out_len, void *in, uint16_t in_len);
 /*---------------------------------------------------------------------------*/
 __STATIC_INLINE
@@ -58,7 +60,7 @@ void
 lr11xx_wake(void)
 {
   nrf_gpio_pin_clear(LR1110_SPI_CS_PIN);
-  clock_delay_usec(50);
+  clock_delay_usec(1000);
   nrf_gpio_pin_set(LR1110_SPI_CS_PIN);
 }
 /*---------------------------------------------------------------------------*/
@@ -67,10 +69,8 @@ void
 lr11xx_reset(void)
 {
   nrf_gpio_pin_clear(LR1110_NRESET_PIN);
-  clock_delay_usec(200);
+  clock_delay_usec(1000);
   nrf_gpio_pin_set(LR1110_NRESET_PIN);
-  // Wait until internal lr11xx fw is ready
-  clock_wait(CLOCK_SECOND / 4);
 }
 /*---------------------------------------------------------------------------*/
 #endif /* LR11XX_H_ */
