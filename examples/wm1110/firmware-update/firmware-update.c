@@ -42,12 +42,12 @@ AUTOSTART_PROCESSES(&playground_process);
 PROCESS_THREAD(playground_process, ev, data)
 {
   static struct etimer et;
-  // static lr11xx_bootloader_version_t version;
+  static lr11xx_bootloader_version_t version;
   // lr11xx_bootloader_stat1_t stat1;
   // lr11xx_bootloader_stat2_t stat2;
   // lr11xx_bootloader_irq_mask_t irq_status;
   // static bool image_valid;
-  // lr11xx_status_t status;
+  lr11xx_status_t status;
   // lr11xx_system_errors_t errors;
 
   PROCESS_BEGIN();
@@ -55,16 +55,16 @@ PROCESS_THREAD(playground_process, ev, data)
   etimer_set(&et, CLOCK_SECOND * 3);
   PROCESS_WAIT_EVENT();
   NETSTACK_RADIO.init();
-  lr11xx_firmware_update(lr11xx_firmware_image, LR11XX_FIRMWARE_IMAGE_SIZE);
-  // LOG_INFO("Reading version\n");
-  // status = lr11xx_bootloader_get_version(NULL, &version);
-  // if(status == LR11XX_STATUS_OK) {
-  //   LOG_INFO("HW Version = %u\n", version.hw);
-  //   LOG_INFO("FW Version = %02u.%02u\n", (uint8_t)(version.fw >> 8), (uint8_t)(version.fw));
-  //   LOG_INFO("Type = %u\n", version.type);
-  // } else {
-  //   LOG_ERR("Failed to get version\n");
-  // }
+  // lr11xx_firmware_update(lr11xx_firmware_image, LR11XX_FIRMWARE_IMAGE_SIZE);
+  LOG_INFO("Reading version\n");
+  status = lr11xx_bootloader_get_version(NULL, &version);
+  if(status == LR11XX_STATUS_OK) {
+    LOG_INFO("HW Version = %u\n", version.hw);
+    LOG_INFO("FW Version = %02u.%02u\n", (uint8_t)(version.fw >> 8), (uint8_t)(version.fw));
+    LOG_INFO("Type = %u\n", version.type);
+  } else {
+    LOG_ERR("Failed to get version\n");
+  }
 
   // lr11xx_bootloader_get_status(NULL, &stat1, &stat2, &irq_status);
   // print_status(&stat1, &stat2, &irq_status);

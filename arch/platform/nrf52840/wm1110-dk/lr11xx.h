@@ -15,6 +15,7 @@
 #include "nrf_drv_gpiote.h"
 #include "nrf_gpio.h"
 #include "clock.h"
+#include "nrf_delay.h"
 /*---------------------------------------------------------------------------*/
 #define USEC_BUSY_TIMEOUT     3000000
 /*---------------------------------------------------------------------------*/
@@ -27,9 +28,16 @@ void lr11xx_wake(void);
 __STATIC_INLINE
 void lr11xx_reset(void);
 
-void lr11xx_spi_read(uint8_t *data, const uint16_t data_length);
+__STATIC_INLINE
+void lr11xx_spi_clear_nss(void);
 
-void lr11xx_spi_uninit(void);
+__STATIC_INLINE
+void lr11xx_spi_set_nss(void);
+
+__STATIC_INLINE
+void lr11xx_delay_ms(uint32_t ms_delay);
+
+void lr11xx_spi_deinit(void);
 
 void lr11xx_spi_init(void);
 
@@ -39,7 +47,8 @@ void lr11xx_enter_bootloader_mode(void);
 
 int lr11xx_firmware_update(const uint32_t *fw_image, uint32_t image_size);
 
-void lr11xx_spi_transfer(const void *out, uint16_t out_len, void *in, uint16_t in_len);
+uint16_t lr11xx_spi_in_out(const uint16_t out_data);
+
 /*---------------------------------------------------------------------------*/
 __STATIC_INLINE
 int
@@ -60,7 +69,7 @@ void
 lr11xx_wake(void)
 {
   nrf_gpio_pin_clear(LR1110_SPI_CS_PIN);
-  clock_delay_usec(1000);
+  clock_delay_usec(5);
   nrf_gpio_pin_set(LR1110_SPI_CS_PIN);
 }
 /*---------------------------------------------------------------------------*/
@@ -69,8 +78,30 @@ void
 lr11xx_reset(void)
 {
   nrf_gpio_pin_clear(LR1110_NRESET_PIN);
-  clock_delay_usec(1000);
+  nrf_delay_ms(5);
   nrf_gpio_pin_set(LR1110_NRESET_PIN);
+  nrf_delay_ms(5);
+}
+/*---------------------------------------------------------------------------*/
+__STATIC_INLINE
+void
+lr11xx_spi_clear_nss(void)
+{
+  nrf_gpio_pin_clear(LR1110_SPI_CS_PIN);
+}
+/*---------------------------------------------------------------------------*/
+__STATIC_INLINE
+void
+lr11xx_spi_set_nss(void)
+{
+  nrf_gpio_pin_set(LR1110_SPI_CS_PIN);
+}
+/*---------------------------------------------------------------------------*/
+__STATIC_INLINE
+void
+lr11xx_delay_ms(uint32_t ms_delay)
+{
+  nrf_delay_ms(ms_delay);
 }
 /*---------------------------------------------------------------------------*/
 #endif /* LR11XX_H_ */

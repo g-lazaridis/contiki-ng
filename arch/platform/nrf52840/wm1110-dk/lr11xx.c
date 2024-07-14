@@ -1,21 +1,20 @@
-// /**
-//  * @file lr11xx.c
-//  * @author your name (you@domain.com)
-//  * @brief
-//  * @version 0.1
-//  * @date 2024-07-06
-//  *
-//  * @copyright Copyright (c) 2024
-//  *
-//  */
-// /*---------------------------------------------------------------------------*/
-#include "nrf_drv_spi.h"
+/**
+ * @file lr11xx.c
+ * @author your name (you@domain.com)
+ * @brief
+ * @version 0.1
+ * @date 2024-07-06
+ *
+ * @copyright Copyright (c) 2024
+ *
+ */
+/*---------------------------------------------------------------------------*/
+#include "nrfx_spim.h"
 #include "lr11xx_hal.h"
 #include "lr11xx_bootloader.h"
 #include "lr11xx_bootloader_types.h"
 #include "lr11xx_system.h"
 #include "lr11xx_system_types.h"
-#include "nrf_delay.h"
 #include "lr11xx_crypto_engine.h"
 #include "lr11xx.h"
 #include "nrf_gpio.h"
@@ -25,57 +24,37 @@
 #define LOG_MODULE "LR11XX"
 #define LOG_LEVEL LOG_LEVEL_INFO
 /*---------------------------------------------------------------------------*/
-static const nrf_drv_spi_t spi = NRF_DRV_SPI_INSTANCE(LR11XX_SPI_INSTANCE);  /**< SPI instance. */
+static const nrfx_spim_t spi = NRFX_SPIM_INSTANCE(LR11XX_SPI_INSTANCE);
 /*---------------------------------------------------------------------------*/
-static uint8_t
-spi_in_out(const uint16_t out_data)
+void
+lr11xx_spi_deinit(void)
+{
+  nrfx_spim_uninit(&spi);
+}
+/*---------------------------------------------------------------------------*/
+uint16_t
+lr11xx_spi_in_out(const uint16_t out_data)
 {
   uint8_t tv = 0, rv = 0;
-
   tv = (uint8_t)(out_data & 0xFF);
-
-  nrf_drv_spi_xfer_desc_t xfer_desc = { .p_tx_buffer = (uint8_t *)(&tv), .tx_length = 1,
-                                        .p_tx_buffer = &rv, .rx_length = 1 };
-  // xfer_desc = NRF_DRV_SPI_XFER_TRX((uint8_t *)(&tv), 1, (uint8_t *)(&rv), 1);
-  nrf_drv_spi_xfer(&spi, &xfer_desc, NRF_DRV_SPI_FLAG_NO_XFER_EVT_HANDLER);
-  // nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX((uint8_t *)(&tv), 1, (uint8_t *)(&rv), 1);
-  // nrfx_spim_xfer(&spi, &xfer_desc, NRFX_SPIM_FLAG_NO_XFER_EVT_HANDLER);
-
+  nrfx_spim_xfer_desc_t xfer_desc = NRFX_SPIM_XFER_TRX((uint8_t *)(&tv), 1, (uint8_t *)(&rv), 1);
+  nrfx_spim_xfer(&spi, &xfer_desc, NRFX_SPIM_FLAG_NO_XFER_EVT_HANDLER);
   return rv;
-}
-/*---------------------------------------------------------------------------*/
-void
-lr11xx_spi_transfer(const void *out, uint16_t out_len, void *in, uint16_t in_len)
-{
-  nrf_drv_spi_transfer(&spi, out, out_len, in, in_len);
-}
-/*---------------------------------------------------------------------------*/
-void
-lr11xx_spi_read(uint8_t *data, const uint16_t data_length)
-{
-  for(int i = 0; i < data_length; i++) {
-    data[i] = spi_in_out(LR11XX_NOP);
-  }
-}
-/*---------------------------------------------------------------------------*/
-void
-lr11xx_spi_uninit(void)
-{
-  nrf_drv_spi_uninit(&spi);
 }
 /*---------------------------------------------------------------------------*/
 void
 lr11xx_spi_init(void)
 {
-  nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
-
-  spi_config.ss_pin = LR1110_SPI_CS_PIN;
+  nrfx_spim_config_t spi_config = NRFX_SPIM_DEFAULT_CONFIG;
+  spi_config.frequency = NRF_SPIM_FREQ_4M;
+  spi_config.mode = NRF_SPIM_MODE_0;
+  spi_config.bit_order = NRF_SPIM_BIT_ORDER_MSB_FIRST;
   spi_config.miso_pin = LR1110_SPI_MISO_PIN;
   spi_config.mosi_pin = LR1110_SPI_MOSI_PIN;
   spi_config.sck_pin = LR1110_SPI_SCK_PIN;
-  spi_config.orc = LR11XX_NOP;
-
-  nrf_drv_spi_init(&spi, &spi_config, NULL, NULL);
+  spi_config.use_hw_ss = false;
+  spi_config.ss_active_high = false;
+  nrfx_spim_init(&spi, &spi_config, NULL, NULL);
 }
 /*---------------------------------------------------------------------------*/
 void
@@ -97,19 +76,8 @@ lr11xx_enter_bootloader_mode(void)
 int
 lr11xx_firmware_update(const uint32_t *fw_image, uint32_t image_size)
 {
-  static bool image_valid;
   lr11xx_bootloader_version_t version;
 
-  // LOG_INFO("Validating fw image...\n");
-  // lr11xx_crypto_check_encrypted_firmware_image_full(NULL, 0, fw_image, image_size);
-  lr11xx_crypto_get_check_encrypted_firmware_image_result(NULL, &image_valid);
-
-  if(!image_valid) {
-    LOG_ERR("Image validation failed\n");
-    return -1;
-  }
-
-  LOG_INFO("Image validation success, entering bootloader mode..\n");
   lr11xx_enter_bootloader_mode();
 
   lr11xx_bootloader_get_version(NULL, &version);
@@ -150,11 +118,11 @@ lr11xx_firmware_update(const uint32_t *fw_image, uint32_t image_size)
   LOG_PRINT(" - Chip firmware version = 0x%04X\n", version_trx.fw);
 
   lr11xx_system_read_uid(NULL, uid);
-  // LOG_INFO("Fetching version.\n");
-  // if(version.type == 0xdf) {
-  //   LOG_ERR("Still in bootloader mode, fw update failed\n");
-  //   return -1;
-  // }
+  LOG_INFO("Fetching version.\n");
+  if(version.type == 0xdf) {
+    LOG_ERR("Still in bootloader mode, fw update failed\n");
+    return -1;
+  }
 
   return 0;
 }

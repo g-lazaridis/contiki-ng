@@ -101,7 +101,7 @@
 
 #define LR1110_IRQ_PIN           NRF_GPIO_PIN_MAP(1, 8)
 
-#define LR11XX_SPI_INSTANCE     0
+#define LR11XX_SPI_INSTANCE     3
 
 /** @} */
 /*---------------------------------------------------------------------------*/

@@ -94,6 +94,7 @@ NRF52_SDK_C_SRCS += components/boards/boards.c \
   modules/nrfx/drivers/src/nrfx_gpiote.c \
   modules/nrfx/drivers/src/nrfx_rng.c \
   modules/nrfx/drivers/src/nrfx_wdt.c \
+  modules/nrfx/drivers/src/nrfx_spim.c \
   modules/nrfx/drivers/src/nrfx_power.c \
   modules/nrfx/drivers/src/nrfx_spi.c \
   modules/nrfx/mdk/system_nrf52840.c \

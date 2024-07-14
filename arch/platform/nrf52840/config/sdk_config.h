@@ -241,12 +241,12 @@
 /* <e> NRFX_SPI_ENABLED - nrfx_spi - SPI peripheral driver */
 /*========================================================== */
 #ifndef NRFX_SPI_ENABLED
-#define NRFX_SPI_ENABLED 1
+#define NRFX_SPI_ENABLED 0
 #endif
 /* <q> NRFX_SPI0_ENABLED  - Enable SPI0 instance */
 
 #ifndef NRFX_SPI0_ENABLED
-#define NRFX_SPI0_ENABLED 1
+#define NRFX_SPI0_ENABLED 0
 #endif
 
 /* <q> NRFX_SPI1_ENABLED  - Enable SPI1 instance */
@@ -336,7 +336,7 @@
 /* <e> NRFX_SPIM_ENABLED - nrfx_spim - SPIM peripheral driver */
 /*========================================================== */
 #ifndef NRFX_SPIM_ENABLED
-#define NRFX_SPIM_ENABLED 0
+#define NRFX_SPIM_ENABLED 1
 #endif
 /* <q> NRFX_SPIM0_ENABLED  - Enable SPIM0 instance */
 
@@ -344,26 +344,44 @@
 #define NRFX_SPIM0_ENABLED 0
 #endif
 
-/* <o> NRFX_SPIM_MISO_PULL_CFG  - MISO pin pull configuration. */
+#ifndef NRFX_SPIM1_ENABLED
+#define NRFX_SPIM1_ENABLED 0
+#endif
 
-/* <0=> NRF_GPIO_PIN_NOPULL */
-/* <1=> NRF_GPIO_PIN_PULLDOWN */
-/* <3=> NRF_GPIO_PIN_PULLUP */
+#ifndef NRFX_SPIM2_ENABLED
+#define NRFX_SPIM2_ENABLED 0
+#endif
+
+#ifndef NRFX_SPIM3_ENABLED
+#define NRFX_SPIM3_ENABLED 1
+#endif
+
+// <q> NRFX_SPIM_EXTENDED_ENABLED  - Enable extended SPIM features
+
+#ifndef NRFX_SPIM_EXTENDED_ENABLED
+#define NRFX_SPIM_EXTENDED_ENABLED 1
+#endif
+
+// <o> NRFX_SPIM_MISO_PULL_CFG  - MISO pin pull configuration.
+
+// <0=> NRF_GPIO_PIN_NOPULL
+// <1=> NRF_GPIO_PIN_PULLDOWN
+// <3=> NRF_GPIO_PIN_PULLUP
 
 #ifndef NRFX_SPIM_MISO_PULL_CFG
 #define NRFX_SPIM_MISO_PULL_CFG 1
 #endif
 
-/* <o> NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority */
+// <o> NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
 
-/* <0=> 0 (highest) */
-/* <1=> 1 */
-/* <2=> 2 */
-/* <3=> 3 */
-/* <4=> 4 */
-/* <5=> 5 */
-/* <6=> 6 */
-/* <7=> 7 */
+// <0=> 0 (highest)
+// <1=> 1
+// <2=> 2
+// <3=> 3
+// <4=> 4
+// <5=> 5
+// <6=> 6
+// <7=> 7
 
 #ifndef NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY
 #define NRFX_SPIM_DEFAULT_CONFIG_IRQ_PRIORITY 6
