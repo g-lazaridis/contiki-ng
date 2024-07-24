@@ -26,6 +26,28 @@
 /*---------------------------------------------------------------------------*/
 static const nrfx_spim_t spi = NRFX_SPIM_INSTANCE(LR11XX_SPI_INSTANCE);
 /*---------------------------------------------------------------------------*/
+static void
+system_init(void)
+{
+  // Configure the regulators
+  lr11xx_system_set_tcxo_mode(NULL, LR11XX_SYSTEM_TCXO_CTRL_3_3V, 50);
+
+  lr11xx_system_cfg_lfclk(NULL, LR11XX_SYSTEM_LFCLK_XTAL, 1);
+  // lr11xx_system_set_dio_as_rf_switch(NULL, rf_switch_setup);
+  // lr11xx_system_drive_dio_in_sleep_mode(NULL, true);
+  lr11xx_system_clear_errors(NULL);
+  lr11xx_system_calibrate(NULL, LR11XX_SYSTEM_CALIB_LF_RC_MASK | LR11XX_SYSTEM_CALIB_HF_RC_MASK | LR11XX_SYSTEM_CALIB_PLL_MASK |
+                          LR11XX_SYSTEM_CALIB_ADC_MASK | LR11XX_SYSTEM_CALIB_IMG_MASK |
+                          LR11XX_SYSTEM_CALIB_PLL_TX_MASK);
+  uint16_t errors;
+  lr11xx_system_get_errors(NULL, &errors);
+  if(errors) {
+    LOG_ERR("System errors on system init : 0x%04X\n", errors);
+  }
+  lr11xx_system_clear_errors(NULL);
+  lr11xx_system_clear_irq_status(NULL, LR11XX_SYSTEM_IRQ_ALL_MASK);
+}
+/*---------------------------------------------------------------------------*/
 void
 lr11xx_spi_deinit(void)
 {
@@ -168,5 +190,6 @@ lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler)
 
   nrf_gpio_pin_set(LR1110_NRESET_PIN);
   lr11xx_spi_init();
+  system_init();
 }
 /*---------------------------------------------------------------------------*/
