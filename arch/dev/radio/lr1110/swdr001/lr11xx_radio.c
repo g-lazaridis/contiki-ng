@@ -46,6 +46,8 @@
  * --- PRIVATE MACROS-----------------------------------------------------------
  */
 
+#define LR11XX_DISABLE_HIGH_ACP_WORKAROUND
+
 /**
  * @brief Management of the high ACP workaround
  */

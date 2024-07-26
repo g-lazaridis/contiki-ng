@@ -119,6 +119,12 @@
 #else
 #define LR11XX_LORA_SYNCWORD  0x12  /* 0x12 Private Network, 0x34 Public Network */
 #endif
+
+#if LR11XX_LORA_CRC == LR11XX_RADIO_LORA_CRC_ON
+#define LR11XX_MAX_PAYLOAD_LEN      253
+#else
+#define LR11XX_MAX_PAYLOAD_LEN      255
+#endif
 /*---------------------------------------------------------------------------*/
 typedef struct lr11xx_radio_conf_pa_pwr_cfg_t {
   int8_t power;
