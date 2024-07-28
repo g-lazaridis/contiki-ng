@@ -81,6 +81,7 @@ static void lr11xx_irq_callback(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t 
 /*---------------------------------------------------------------------------*/
 static volatile uint8_t pack_pending = 0;
 static volatile uint8_t pack_receiving = 0;
+static uint8_t radio_off = 0;
 /*---------------------------------------------------------------------------*/
 static void
 radio_params_init(void)
@@ -122,6 +123,7 @@ radio_params_init(void)
 static int
 on(void)
 {
+  off = 0;
   ENERGEST_ON(ENERGEST_TYPE_LISTEN);
   return 0;
 }
@@ -190,8 +192,45 @@ send(const void *payload, unsigned short payload_len)
 }
 /*---------------------------------------------------------------------------*/
 static int
+off(void)
+{
+  ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
+
+  radio_off = 1;
+
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+static int
 read_frame(void *buf, unsigned short bufsize)
 {
+  lr11xx_radio_rx_buffer_status_t rx_buffer_status;
+  lr11xx_radio_pkt_status_lora_t pkt_status_lora;
+
+  if(!pack_pending) {
+    return 0;
+  }
+
+  lr11xx_radio_get_rx_buffer_status(NULL, &rx_buffer_status);
+  if(rx_buffer_status.pld_len_in_bytes > bufsize) {
+    LOG_ERR("read_frame: frame of size %d can't fit to buffer of size %d",
+            rx_buffer_status.pld_len_in_bytes, bufsize);
+    return 0;
+  }
+
+  lr11xx_regmem_read_buffer8(NULL, buf, rx_buffer_status.buffer_start_pointer,
+                             rx_buffer_status.pld_len_in_bytes);
+
+  lr11xx_radio_get_lora_pkt_status(NULL, &pkt_status_lora);
+
+  packetbuf_set_attr(PACKETBUF_ATTR_RSSI, pkt_status_lora.rssi_pkt_in_dbm);
+
+  if(radio_off) {
+    off();
+  }
+
+  pack_pending = 0;
+
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -205,14 +244,6 @@ static int
 pending_packet(void)
 {
   return pack_pending;
-}
-/*---------------------------------------------------------------------------*/
-static int
-off(void)
-{
-  ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
-
-  return 0;
 }
 /*---------------------------------------------------------------------------*/
 static radio_result_t
@@ -260,30 +291,36 @@ const struct radio_driver lr11xx_radio_driver = {
 PROCESS_THREAD(lr11xx_rf_process, ev, data)
 {
   int len;
+  lr11xx_radio_rx_buffer_status_t rx_buffer_status;
+  lr11xx_radio_pkt_status_lora_t pkt_status_lora;
+
   PROCESS_BEGIN();
 
   while(1) {
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
     LOG_DBG("Polled\n");
-
     watchdog_periodic();
     packetbuf_clear();
-    len = read_frame(packetbuf_dataptr(), PACKETBUF_SIZE);
-    if(len > 0) {
+    lr11xx_radio_get_rx_buffer_status(context, &rx_buffer_status);
+    len = rx_buffer_status.pld_len_in_bytes;
+    if(len > 0 && !len > PACKETBUF_SIZE) {
       packetbuf_set_datalen(len);
+      lr11xx_regmem_read_buffer8(NULL, packetbuf_dataptr(), rx_buffer_status.buffer_start_pointer,
+                                 rx_buffer_status.pld_len_in_bytes);
+      lr11xx_radio_get_lora_pkt_status(NULL, &pkt_status_lora);
       NETSTACK_MAC.input();
-      LOG_DBG("last frame (%u bytes) timestamps:\n", timestamps.phr);
-      LOG_DBG("      SFD=%lu (Derived)\n", (unsigned long)timestamps.sfd);
-      LOG_DBG("      PHY=%lu (PPI)\n", (unsigned long)timestamps.framestart);
-      LOG_DBG("     MPDU=%lu (Duration)\n",
-              (unsigned long)timestamps.mpdu_duration);
-      LOG_DBG("      END=%lu (PPI)\n", (unsigned long)timestamps.end);
-      LOG_DBG(" Expected=%lu + %u + %lu = %lu\n",
-              (unsigned long)timestamps.sfd,
-              BYTE_DURATION_RTIMER, (unsigned long)timestamps.mpdu_duration,
-              (unsigned long)timestamps.sfd + BYTE_DURATION_RTIMER
-              + timestamps.mpdu_duration);
+      // LOG_DBG("last frame (%u bytes) timestamps:\n", timestamps.phr);
+      // LOG_DBG("      SFD=%lu (Derived)\n", (unsigned long)timestamps.sfd);
+      // LOG_DBG("      PHY=%lu (PPI)\n", (unsigned long)timestamps.framestart);
+      // LOG_DBG("     MPDU=%lu (Duration)\n",
+      //         (unsigned long)timestamps.mpdu_duration);
+      // LOG_DBG("      END=%lu (PPI)\n", (unsigned long)timestamps.end);
+      // LOG_DBG(" Expected=%lu + %u + %lu = %lu\n",
+      //         (unsigned long)timestamps.sfd,
+      //         BYTE_DURATION_RTIMER, (unsigned long)timestamps.mpdu_duration,
+      //         (unsigned long)timestamps.sfd + BYTE_DURATION_RTIMER
+      //         + timestamps.mpdu_duration);
     }
   }
 

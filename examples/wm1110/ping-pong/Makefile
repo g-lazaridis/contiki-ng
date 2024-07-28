@@ -1,0 +1,13 @@
+CONTIKI_PROJECT = firmware-update
+
+
+TARGET = nrf52840
+BOARD = wm1110-dk
+
+all: $(CONTIKI_PROJECT)
+MODULES_REL += .
+MAKE_MAC = MAKE_MAC_NULLMAC
+MAKE_NET = MAKE_NET_NULLNET
+
+include $(CONTIKI)/Makefile.include
+
