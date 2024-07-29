@@ -40,6 +40,7 @@
  */
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
+#include "netstack.h"
 #include "dev/radio.h"
 #include "sys/energest.h"
 #include "net/packetbuf.h"
@@ -120,10 +121,17 @@ radio_params_init(void)
   lr11xx_radio_set_lora_sync_word(NULL, LR11XX_LORA_SYNCWORD);
 }
 /*---------------------------------------------------------------------------*/
+static void
+enter_rx(void)
+{
+  lr11xx_radio_set_rx(NULL, 0);
+}
+/*---------------------------------------------------------------------------*/
 static int
 on(void)
 {
-  off = 0;
+  radio_off = 0;
+  enter_rx();
   ENERGEST_ON(ENERGEST_TYPE_LISTEN);
   return 0;
 }
@@ -148,7 +156,7 @@ init(void)
 static int
 prepare(const void *payload, unsigned short payload_len)
 {
-  if(payload_len > MAX_PAYLOAD_LEN) {
+  if(payload_len > LR11XX_MAX_PAYLOAD_LEN) {
     LOG_ERR("prepare: Invalid payload size, %d\n", payload_len);
     return RADIO_TX_ERR;
   }
@@ -164,8 +172,8 @@ transmit(unsigned short transmit_len)
 {
   lr11xx_system_irq_mask_t irq_status;
 
-  if(transmit_len > MAX_PAYLOAD_LEN) {
-    LOG_ERR("transmit: Invalid payload size, %d\n", payload_len);
+  if(transmit_len > LR11XX_MAX_PAYLOAD_LEN) {
+    LOG_ERR("transmit: Invalid payload size, %d\n", transmit_len);
     return RADIO_TX_ERR;
   }
   //TODO, implement cad (channel activity detection)
@@ -179,7 +187,7 @@ transmit(unsigned short transmit_len)
   } while(!(irq_status & LR11XX_SYSTEM_IRQ_TX_DONE));
 
   /* We are now in RX */
-  lr11xx_radio_set_rx(NULL, 0);
+  enter_rx();
   ENERGEST_SWITCH(ENERGEST_TYPE_TRANSMIT, ENERGEST_TYPE_LISTEN);
   return 0;
 }
@@ -194,6 +202,12 @@ send(const void *payload, unsigned short payload_len)
 static int
 off(void)
 {
+  lr11xx_system_sleep_cfg_t radio_sleep_cfg;
+  radio_sleep_cfg.is_warm_start = 1;
+  radio_sleep_cfg.is_rtc_timeout = 0;
+
+  lr11xx_system_drive_dio_in_sleep_mode(NULL, true);
+  lr11xx_system_set_sleep(NULL, radio_sleep_cfg, 0);
   ENERGEST_OFF(ENERGEST_TYPE_LISTEN);
 
   radio_off = 1;
@@ -227,6 +241,8 @@ read_frame(void *buf, unsigned short bufsize)
 
   if(radio_off) {
     off();
+  } else {
+    enter_rx();
   }
 
   pack_pending = 0;
@@ -291,8 +307,6 @@ const struct radio_driver lr11xx_radio_driver = {
 PROCESS_THREAD(lr11xx_rf_process, ev, data)
 {
   int len;
-  lr11xx_radio_rx_buffer_status_t rx_buffer_status;
-  lr11xx_radio_pkt_status_lora_t pkt_status_lora;
 
   PROCESS_BEGIN();
 
@@ -300,27 +314,25 @@ PROCESS_THREAD(lr11xx_rf_process, ev, data)
     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
 
     LOG_DBG("Polled\n");
-    watchdog_periodic();
-    packetbuf_clear();
-    lr11xx_radio_get_rx_buffer_status(context, &rx_buffer_status);
-    len = rx_buffer_status.pld_len_in_bytes;
-    if(len > 0 && !len > PACKETBUF_SIZE) {
-      packetbuf_set_datalen(len);
-      lr11xx_regmem_read_buffer8(NULL, packetbuf_dataptr(), rx_buffer_status.buffer_start_pointer,
-                                 rx_buffer_status.pld_len_in_bytes);
-      lr11xx_radio_get_lora_pkt_status(NULL, &pkt_status_lora);
-      NETSTACK_MAC.input();
-      // LOG_DBG("last frame (%u bytes) timestamps:\n", timestamps.phr);
-      // LOG_DBG("      SFD=%lu (Derived)\n", (unsigned long)timestamps.sfd);
-      // LOG_DBG("      PHY=%lu (PPI)\n", (unsigned long)timestamps.framestart);
-      // LOG_DBG("     MPDU=%lu (Duration)\n",
-      //         (unsigned long)timestamps.mpdu_duration);
-      // LOG_DBG("      END=%lu (PPI)\n", (unsigned long)timestamps.end);
-      // LOG_DBG(" Expected=%lu + %u + %lu = %lu\n",
-      //         (unsigned long)timestamps.sfd,
-      //         BYTE_DURATION_RTIMER, (unsigned long)timestamps.mpdu_duration,
-      //         (unsigned long)timestamps.sfd + BYTE_DURATION_RTIMER
-      //         + timestamps.mpdu_duration);
+    if(pending_packet()) {
+      watchdog_periodic();
+      packetbuf_clear();
+      len = read_frame(packetbuf_dataptr(), PACKETBUF_SIZE);
+      if(len) {
+        packetbuf_set_datalen(len);
+        NETSTACK_MAC.input();
+        // LOG_DBG("last frame (%u bytes) timestamps:\n", timestamps.phr);
+        // LOG_DBG("      SFD=%lu (Derived)\n", (unsigned long)timestamps.sfd);
+        // LOG_DBG("      PHY=%lu (PPI)\n", (unsigned long)timestamps.framestart);
+        // LOG_DBG("     MPDU=%lu (Duration)\n",
+        //         (unsigned long)timestamps.mpdu_duration);
+        // LOG_DBG("      END=%lu (PPI)\n", (unsigned long)timestamps.end);
+        // LOG_DBG(" Expected=%lu + %u + %lu = %lu\n",
+        //         (unsigned long)timestamps.sfd,
+        //         BYTE_DURATION_RTIMER, (unsigned long)timestamps.mpdu_duration,
+        //         (unsigned long)timestamps.sfd + BYTE_DURATION_RTIMER
+        //         + timestamps.mpdu_duration);
+      }
     }
   }
 

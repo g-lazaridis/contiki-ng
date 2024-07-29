@@ -8,9 +8,9 @@
  * @copyright Copyright (c) 2024
  *
  */
-
+#ifndef LR11XX_RADIO_CONF_H_
+#define LR11XX_RADIO_CONF_H_
 #include "lr11xx_radio_types.h"
-
 /*---------------------------------------------------------------------------*/
 /*!
  * @brief General parameters
@@ -126,7 +126,7 @@
 #define LR11XX_MAX_PAYLOAD_LEN      255
 #endif
 /*---------------------------------------------------------------------------*/
-typedef struct lr11xx_radio_conf_pa_pwr_cfg_t {
+typedef struct {
   int8_t power;
   lr11xx_radio_pa_cfg_t pa_config;
 } lr11xx_radio_conf_pa_pwr_cfg_t;
@@ -143,3 +143,4 @@ const lr11xx_radio_rssi_calibration_table_t *lr11xx_radio_conf_get_rssi_calibrat
  */
 uint8_t lr11xx_radio_conf_compute_lora_ldro(const lr11xx_radio_lora_sf_t sf, const lr11xx_radio_lora_bw_t bw);
 /*---------------------------------------------------------------------------*/
+#endif /* LR11XX_RADIO_CONF_H_ */

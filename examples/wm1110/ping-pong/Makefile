@@ -1,5 +1,5 @@
-CONTIKI_PROJECT = firmware-update
-
+CONTIKI_PROJECT = ping-pong
+CONTIKI = ../../..
 
 TARGET = nrf52840
 BOARD = wm1110-dk
