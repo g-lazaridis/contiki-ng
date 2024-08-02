@@ -70,10 +70,10 @@ static lr11xx_radio_mod_params_lora_t lora_mod_params = {
   .ldro = 0    // Will be initialized in radio init
 };
 
-static const lr11xx_radio_pkt_params_lora_t lora_pkt_params = {
+static lr11xx_radio_pkt_params_lora_t lora_pkt_params = {
   .preamble_len_in_symb = LR11XX_LORA_PREAMBLE_LENGTH,
   .header_type = LR11XX_LORA_PKT_LEN_MODE,
-  .pld_len_in_bytes = LR11XX_PAYLOAD_LENGTH,
+  .pld_len_in_bytes = 7,
   .crc = LR11XX_LORA_CRC,
   .iq = LR11XX_LORA_IQ,
 };
@@ -124,6 +124,9 @@ radio_params_init(void)
 static void
 enter_rx(void)
 {
+  // Accept all payload lengths..
+  lora_pkt_params.pld_len_in_bytes = 0;
+  lr11xx_radio_set_lora_pkt_params(NULL, &lora_pkt_params);
   lr11xx_radio_set_rx(NULL, 0);
 }
 /*---------------------------------------------------------------------------*/
@@ -147,6 +150,10 @@ init(void)
 {
   /* Initialize system parameters (spi, gpio)*/
   lr11xx_init(lr11xx_irq_callback);
+  /* Initialize radio parameters */
+  radio_params_init();
+  /* Set up pin IRQ conditions */
+  lr11xx_system_set_dio_irq_params(NULL, IRQ_MASK, 0);
 
   /* Start the RF driver process */
   process_start(&lr11xx_rf_process, NULL);
@@ -160,10 +167,9 @@ prepare(const void *payload, unsigned short payload_len)
     LOG_ERR("prepare: Invalid payload size, %d\n", payload_len);
     return RADIO_TX_ERR;
   }
+  LOG_INFO("Writing %d bytes to tx buffer\n", payload_len);
   lr11xx_regmem_write_buffer8(NULL, payload, payload_len);
-  radio_params_init();
-  /* Set up pin IRQ conditions */
-  lr11xx_system_set_dio_irq_params(NULL, IRQ_MASK, 0);
+  lr11xx_print_status();
   return RADIO_TX_OK;
 }
 /*---------------------------------------------------------------------------*/
@@ -177,6 +183,10 @@ transmit(unsigned short transmit_len)
     return RADIO_TX_ERR;
   }
   //TODO, implement cad (channel activity detection)
+
+  /* Set payload len */
+  // lora_pkt_params.pld_len_in_bytes = transmit_len;
+  // lr11xx_radio_set_lora_pkt_params(NULL, &lora_pkt_params);
   /* Start the transmission */
   lr11xx_system_clear_irq_status(NULL, LR11XX_SYSTEM_IRQ_TX_DONE);
   ENERGEST_SWITCH(ENERGEST_TYPE_LISTEN, ENERGEST_TYPE_TRANSMIT);
@@ -186,6 +196,8 @@ transmit(unsigned short transmit_len)
     lr11xx_system_get_irq_status(NULL, &irq_status);
   } while(!(irq_status & LR11XX_SYSTEM_IRQ_TX_DONE));
 
+  lr11xx_system_clear_irq_status(NULL, LR11XX_SYSTEM_IRQ_TX_DONE);
+  LOG_INFO("Transmission complete\n");
   /* We are now in RX */
   enter_rx();
   ENERGEST_SWITCH(ENERGEST_TYPE_TRANSMIT, ENERGEST_TYPE_LISTEN);
@@ -221,9 +233,14 @@ read_frame(void *buf, unsigned short bufsize)
   lr11xx_radio_rx_buffer_status_t rx_buffer_status;
   lr11xx_radio_pkt_status_lora_t pkt_status_lora;
 
+  LOG_INFO("read_frame\n");
+
   if(!pack_pending) {
+    LOG_WARN("read_frame: No packet pending!\n");
     return 0;
   }
+
+  LOG_INFO("read_frame: Packet pending\n");
 
   lr11xx_radio_get_rx_buffer_status(NULL, &rx_buffer_status);
   if(rx_buffer_status.pld_len_in_bytes > bufsize) {
@@ -231,6 +248,8 @@ read_frame(void *buf, unsigned short bufsize)
             rx_buffer_status.pld_len_in_bytes, bufsize);
     return 0;
   }
+
+  LOG_INFO("read_frame: Bytes pending, %u\n", rx_buffer_status.pld_len_in_bytes);
 
   lr11xx_regmem_read_buffer8(NULL, buf, rx_buffer_status.buffer_start_pointer,
                              rx_buffer_status.pld_len_in_bytes);
@@ -306,7 +325,7 @@ const struct radio_driver lr11xx_radio_driver = {
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(lr11xx_rf_process, ev, data)
 {
-  int len;
+  // int len;
 
   PROCESS_BEGIN();
 
@@ -316,23 +335,23 @@ PROCESS_THREAD(lr11xx_rf_process, ev, data)
     LOG_DBG("Polled\n");
     if(pending_packet()) {
       watchdog_periodic();
-      packetbuf_clear();
-      len = read_frame(packetbuf_dataptr(), PACKETBUF_SIZE);
-      if(len) {
-        packetbuf_set_datalen(len);
-        NETSTACK_MAC.input();
-        // LOG_DBG("last frame (%u bytes) timestamps:\n", timestamps.phr);
-        // LOG_DBG("      SFD=%lu (Derived)\n", (unsigned long)timestamps.sfd);
-        // LOG_DBG("      PHY=%lu (PPI)\n", (unsigned long)timestamps.framestart);
-        // LOG_DBG("     MPDU=%lu (Duration)\n",
-        //         (unsigned long)timestamps.mpdu_duration);
-        // LOG_DBG("      END=%lu (PPI)\n", (unsigned long)timestamps.end);
-        // LOG_DBG(" Expected=%lu + %u + %lu = %lu\n",
-        //         (unsigned long)timestamps.sfd,
-        //         BYTE_DURATION_RTIMER, (unsigned long)timestamps.mpdu_duration,
-        //         (unsigned long)timestamps.sfd + BYTE_DURATION_RTIMER
-        //         + timestamps.mpdu_duration);
-      }
+      // packetbuf_clear();
+      // len = read_frame(packetbuf_dataptr(), PACKETBUF_SIZE);
+      // if(len) {
+      // packetbuf_set_datalen(len);
+      // NETSTACK_MAC.input();
+      // LOG_DBG("last frame (%u bytes) timestamps:\n", timestamps.phr);
+      // LOG_DBG("      SFD=%lu (Derived)\n", (unsigned long)timestamps.sfd);
+      // LOG_DBG("      PHY=%lu (PPI)\n", (unsigned long)timestamps.framestart);
+      // LOG_DBG("     MPDU=%lu (Duration)\n",
+      //         (unsigned long)timestamps.mpdu_duration);
+      // LOG_DBG("      END=%lu (PPI)\n", (unsigned long)timestamps.end);
+      // LOG_DBG(" Expected=%lu + %u + %lu = %lu\n",
+      //         (unsigned long)timestamps.sfd,
+      //         BYTE_DURATION_RTIMER, (unsigned long)timestamps.mpdu_duration,
+      //         (unsigned long)timestamps.sfd + BYTE_DURATION_RTIMER
+      //         + timestamps.mpdu_duration);
+      // }
     }
   }
 
@@ -343,8 +362,9 @@ static void
 lr11xx_irq_callback(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
   lr11xx_system_irq_mask_t irq_status, irq_clear = LR11XX_SYSTEM_IRQ_NONE;
-
+  lr11xx_radio_rx_buffer_status_t rx_buffer_status;
   lr11xx_system_get_irq_status(NULL, &irq_status);
+  LOG_INFO("Status=0x%08lx\n", irq_status);
 
   if(irq_status & LR11XX_SYSTEM_IRQ_PREAMBLE_DETECTED) {
     pack_receiving = 1;
@@ -352,6 +372,8 @@ lr11xx_irq_callback(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
   }
 
   if(irq_status & LR11XX_SYSTEM_IRQ_RX_DONE) {
+    lr11xx_radio_get_rx_buffer_status(NULL, &rx_buffer_status);
+    LOG_INFO("Bytes=%d\n", rx_buffer_status.pld_len_in_bytes);
     pack_pending = 1;
     pack_receiving = 0;
     process_poll(&lr11xx_rf_process);

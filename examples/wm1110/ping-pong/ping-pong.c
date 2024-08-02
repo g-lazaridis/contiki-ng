@@ -13,6 +13,10 @@
 #include "rtimer-arch.h"
 #include "netstack.h"
 #include <string.h>
+#include "lr11xx_system.h"
+#include "lr11xx_radio.h"
+#include "lr11xx_regmem.h"
+#include "lr11xx-radio-conf.h"
 /*---------------------------------------------------------------------------*/
 /* Log configuration */
 #include "sys/log.h"
@@ -61,51 +65,84 @@ AUTOSTART_PROCESSES(&ping_pong_process);
 
 #define PAYLOAD_LENGTH  7
 /*---------------------------------------------------------------------------*/
-static uint8_t buffer_tx[PAYLOAD_LENGTH];
-static uint8_t buffer_rx[PAYLOAD_LENGTH];
+static uint8_t buffer_tx[] = { 'P', 'I', 'N', 'G', 0, 0, 0 };
+// static uint8_t buffer_rx[PAYLOAD_LENGTH] = { 0 };
 
-static const uint8_t ping_msg[PING_PONG_PREFIX_SIZE] = "PING";
-static const uint8_t pong_msg[PING_PONG_PREFIX_SIZE] = "PONG";
+// static const uint8_t ping_msg[PING_PONG_PREFIX_SIZE] = "PING";
+// static const uint8_t pong_msg[PING_PONG_PREFIX_SIZE] = "PONG";
 /*---------------------------------------------------------------------------*/
+// PROCESS_THREAD(ping_pong_process, ev, data)
+// {
+//   static struct etimer et;
+//   static uint8_t iteration = 0;
+//   static rtimer_clock_t now;
+//   uint8_t packet_seen = 0;
 
+//   PROCESS_BEGIN();
+//   // buffer_print[PING_PONG_PREFIX_SIZE] = '\0';
+//   NETSTACK_RADIO.init();
+//   NETSTACK_RADIO.on();
+//   buffer_tx[PING_PONG_PREFIX_SIZE] = (uint8_t)0;
+//   while(1) {
+//     LOG_INFO("Polling packet\n");
+//     // etimer_set(&et, (CLOCK_SECOND));
+//     // PROCESS_WAIT_EVENT();
+//     now = RTIMER_NOW();
+//     RTIMER_BUSYWAIT_UNTIL_ABS((packet_seen = NETSTACK_RADIO.pending_packet()),
+//                               now, RTIMER_SECOND);
+//     if(packet_seen) {
+//       LOG_INFO("Packet received: ");
+//       NETSTACK_RADIO.read(buffer_rx, sizeof(buffer_rx));
+//       if(memcmp(buffer_rx, ping_msg, PING_PONG_PREFIX_SIZE) == 0) {
+//         LOG_INFO_("PING!\n");
+//         memcpy(buffer_tx, pong_msg, PING_PONG_PREFIX_SIZE);
+//       } else if(memcmp(buffer_rx, pong_msg, PING_PONG_PREFIX_SIZE) == 0) {
+//         memcpy(buffer_tx, ping_msg, PING_PONG_PREFIX_SIZE);
+//         LOG_INFO_("PONG!\n");
+//       } else {
+//         LOG_ERR("Invalid packet received\n");
+//       }
+//       iteration = buffer_rx[ITERATION_INDEX];
+//       iteration++;
+//       buffer_tx[ITERATION_INDEX] = (uint8_t)(iteration);
+//       etimer_set(&et, CLOCK_SECOND / 2);
+//       PROCESS_WAIT_EVENT();
+//       LOG_INFO("Transmitting..\n");
+//       NETSTACK_RADIO.send(buffer_tx, PAYLOAD_LENGTH);
+//     } else {
+//       LOG_INFO("Pinging....\n");
+//       buffer_tx[ITERATION_INDEX] = (uint8_t)(iteration);
+//       memcpy(buffer_tx, ping_msg, PING_PONG_PREFIX_SIZE);
+//       NETSTACK_RADIO.send(buffer_tx, PAYLOAD_LENGTH);
+//       // PROCESS_PAUSE();
+//       // etimer_set(&et, (CLOCK_SECOND));
+//       // PROCESS_WAIT_EVENT();
+//     }
+//   }
+//   PROCESS_END();
+// }
+/*---------------------------------------------------------------------------*/
 PROCESS_THREAD(ping_pong_process, ev, data)
 {
   static struct etimer et;
-  static uint8_t iteration;
-  uint8_t packet_seen;
 
   PROCESS_BEGIN();
-
-  etimer_set(&et, CLOCK_SECOND * 3);
+  // buffer_print[PING_PONG_PREFIX_SIZE] = '\0';
   NETSTACK_RADIO.init();
-  NETSTACK_RADIO.on();
+  // NETSTACK_RADIO.on();
+  // memcpy(buffer_tx, ping_msg, PING_PONG_PREFIX_SIZE);
   buffer_tx[PING_PONG_PREFIX_SIZE] = (uint8_t)0;
+  // system_init();
+  // radio_init();
   while(1) {
-    RTIMER_BUSYWAIT_UNTIL_ABS((packet_seen = NETSTACK_RADIO.pending_packet()),
-                              RTIMER_NOW(), RTIMER_NOW() + RTIMER_ARCH_SECOND);
-    if(packet_seen) {
-      LOG_INFO("Packet received: ");
-      NETSTACK_RADIO.read(buffer_rx, sizeof(buffer_rx));
-      if(memcmp(buffer_rx, ping_msg, PING_PONG_PREFIX_SIZE)) {
-        LOG_INFO("PING!\n");
-        memcpy(buffer_tx, pong_msg, PING_PONG_PREFIX_SIZE);
-      } else if(memcmp(buffer_rx, pong_msg, PING_PONG_PREFIX_SIZE)) {
-        memcpy(buffer_tx, ping_msg, PING_PONG_PREFIX_SIZE);
-        LOG_INFO("PONG!\n");
-      }
-      iteration = buffer_rx[ITERATION_INDEX];
-      iteration++;
-      buffer_tx[ITERATION_INDEX] = (uint8_t)(iteration);
-      etimer_set(&et,
-                 (CLOCK_SECOND * (DELAY_PING_PONG_PACE_MS + DELAY_BEFORE_TX_MS)) / 1000);
-      PROCESS_WAIT_EVENT();
-      LOG_INFO("Transmitting..\n");
-      NETSTACK_RADIO.send(buffer_tx, PAYLOAD_LENGTH);
-    } else {
-      LOG_INFO("Waiting for packet\n");
-      // PROCESS_PAUSE();
-    }
+    etimer_set(&et, (CLOCK_SECOND));
+    PROCESS_WAIT_EVENT();
+    LOG_INFO("Sending packet packet\n");
+    lr11xx_regmem_write_buffer8(NULL, buffer_tx, PAYLOAD_LENGTH);
+    lr11xx_radio_set_tx(NULL, 0);
+    // NETSTACK_RADIO.send(buffer_tx, sizeof(buffer_tx));
+    // etimer_set(&et, (CLOCK_SECOND));
+    // PROCESS_WAIT_EVENT();
   }
   PROCESS_END();
 }
-/*---------------------------------------------------------------------------*/

@@ -29,12 +29,24 @@ static const nrfx_spim_t spi = NRFX_SPIM_INSTANCE(LR11XX_SPI_INSTANCE);
 static void
 system_init(void)
 {
+  lr11xx_system_rfswitch_cfg_t rfswitch_cfg = {
+    .enable = LR11XX_SYSTEM_RFSW0_HIGH | LR11XX_SYSTEM_RFSW1_HIGH,
+    .standby = 0,
+    .rx = LR11XX_SYSTEM_RFSW0_HIGH,
+    .tx = LR11XX_SYSTEM_RFSW0_HIGH | LR11XX_SYSTEM_RFSW1_HIGH,
+    .tx_hp = LR11XX_SYSTEM_RFSW1_HIGH,
+    .tx_hf = 0,
+    .gnss = 0,
+    .wifi = 0,
+  };
+
   // Configure the regulators
+  lr11xx_system_set_reg_mode(NULL, LR11XX_SYSTEM_REG_MODE_DCDC);
   lr11xx_system_set_tcxo_mode(NULL, LR11XX_SYSTEM_TCXO_CTRL_3_3V, 50);
 
   lr11xx_system_cfg_lfclk(NULL, LR11XX_SYSTEM_LFCLK_XTAL, 1);
-  // lr11xx_system_set_dio_as_rf_switch(NULL, rf_switch_setup);
-  // lr11xx_system_drive_dio_in_sleep_mode(NULL, true);
+  lr11xx_system_set_dio_as_rf_switch(NULL, &rfswitch_cfg);
+  lr11xx_system_drive_dio_in_sleep_mode(NULL, true);
   lr11xx_system_clear_errors(NULL);
   lr11xx_system_calibrate(NULL, LR11XX_SYSTEM_CALIB_LF_RC_MASK | LR11XX_SYSTEM_CALIB_HF_RC_MASK | LR11XX_SYSTEM_CALIB_PLL_MASK |
                           LR11XX_SYSTEM_CALIB_ADC_MASK | LR11XX_SYSTEM_CALIB_IMG_MASK |
@@ -150,6 +162,23 @@ lr11xx_firmware_update(const uint32_t *fw_image, uint32_t image_size)
 }
 /*---------------------------------------------------------------------------*/
 void
+lr11xx_print_status(void)
+{
+  lr11xx_system_stat1_t stat1;
+  lr11xx_system_stat2_t stat2;
+  lr11xx_system_irq_mask_t irq_status;
+
+  lr11xx_system_get_status(NULL, &stat1, &stat2, &irq_status);
+
+  LOG_INFO("Command status = %u\n", stat1.command_status);
+  LOG_INFO("Irq Active = %u\n", stat1.is_interrupt_active);
+  LOG_INFO("Reset status = %u\n", stat2.reset_status);
+  LOG_INFO("Chip mode = %u\n", stat2.chip_mode);
+  LOG_INFO("Running from flash = %u\n", stat2.is_running_from_flash);
+  LOG_INFO("IRQ status = 0x%08lX\n", irq_status);
+}
+/*---------------------------------------------------------------------------*/
+void
 lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler)
 {
   nrf_drv_gpiote_in_config_t irq_config;
@@ -179,14 +208,15 @@ lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler)
   nrf_gpio_pin_set(LR1110_SPI_CS_PIN);
   nrf_gpio_cfg_input(LR1110_BUSY_PIN, NRF_GPIO_PIN_NOPULL);
 
-  nrf_drv_gpiote_init();
   irq_config.hi_accuracy = false;
   irq_config.is_watcher = false;
   irq_config.skip_gpio_setup = false;
   irq_config.pull = NRF_GPIO_PIN_PULLDOWN;
   irq_config.sense = NRF_GPIOTE_POLARITY_LOTOHI;
 
+  nrf_drv_gpiote_init();
   nrf_drv_gpiote_in_init(LR1110_IRQ_PIN, &irq_config, gpio_irq_handler);
+  nrf_drv_gpiote_in_event_enable(LR1110_IRQ_PIN, true);
 
   nrf_gpio_pin_set(LR1110_NRESET_PIN);
   lr11xx_spi_init();

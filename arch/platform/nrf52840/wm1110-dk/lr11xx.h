@@ -41,6 +41,8 @@ void lr11xx_spi_deinit(void);
 
 void lr11xx_spi_init(void);
 
+void lr11xx_print_status(void);
+
 void lr11xx_init(nrfx_gpiote_evt_handler_t gpio_irq_handler);
 
 void lr11xx_enter_bootloader_mode(void);
