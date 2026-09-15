@@ -8,6 +8,7 @@ endif
 
 NRFJPROG ?= nrfjprog
 NRFUTIL ?= nrfutil
+OPENOCD ?= openocd
 
 ifeq ($(NRF52840_USE_RTT),1)
   ### Suppress the existing debug I/O in os/lib
@@ -157,6 +158,37 @@ endif
 
 %.bin: $(OUT_BIN)
 	@echo Done
+
+# Upload over SWD using OpenOCD, for boards that carry no J-Link. Select the
+# probe with OPENOCD_INTERFACE, naming any config under OpenOCD's
+# scripts/interface directory:
+#
+#   cmsis-dap    CMSIS-DAP / DAPLink probes, and the Raspberry Pi Debug Probe
+#   stlink-dap   ST-Link driven as a plain DAP. Needs firmware V2J28 or newer,
+#                and is the only ST-Link mode that can clear APPROTECT.
+#   stlink       ST-Link as a high-level adapter. Programs a device that is not
+#                read-back protected, but cannot reach the CTRL-AP, so it
+#                cannot recover a locked one.
+#   jlink        SEGGER probes, if you would rather not use nrfjprog
+#
+# For example:
+#
+#   make TARGET=nrf52840 BOARD=wm1110-dk OPENOCD_INTERFACE=stlink-dap \
+#        node.openocd-upload
+
+OPENOCD_INTERFACE ?= cmsis-dap
+OPENOCD_TARGET ?= nrf52
+OPENOCD_TRANSPORT_CFG ?= -f interface/$(OPENOCD_INTERFACE).cfg -f target/$(OPENOCD_TARGET).cfg
+
+# OpenOCD reads the ELF directly, so this deliberately does not depend on
+# $(OUT_HEX): building that needs srec_cat, which nrfjprog requires but
+# OpenOCD does not.
+%.openocd-upload: $(BUILD_DIR_BOARD)/%.$(TARGET)
+ifeq (, $(shell which $(OPENOCD)))
+	$(error Could not find openocd "$(OPENOCD)", please install it)
+else
+	$(OPENOCD) $(OPENOCD_TRANSPORT_CFG) -c "program $< verify reset exit"
+endif
 
 # Upload to all attached boards
 # This approach is similar to the sky platform
