@@ -28,6 +28,13 @@ ifeq ($(BOARD), dongle)
   __RAM_SIZE ?= 0x3fff8
   NRF52840_NATIVE_USB ?= 1
   NRF52840_USB_DFU_TRIGGER ?= 1
+else ifeq ($(BOARD), wm1110-dk)
+  CFLAGS += -DCUSTOM_BOARD_INC=wm1110-dk
+  __FLASH ?= 0x00000000
+  __FLASH_SIZE ?= 0x100000
+  __RAM ?= 0x20000000
+  __RAM_SIZE ?= 0x40000
+  NRF52840_NATIVE_USB ?= 0
 else
   CFLAGS += -DBOARD_PCA10056
   __FLASH ?= 0x00000000
@@ -49,7 +56,13 @@ CONTIKI_CPU_DIRS += . dev rf usb
 ### CPU-dependent source files
 CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c uart0.c dbg.c watchdog.c
 CONTIKI_CPU_SOURCEFILES += int-master.c slip-arch.c gpio-hal-arch.c
-CONTIKI_CPU_SOURCEFILES += nrf52840-ieee.c
+
+### The WM1110 uses the LR1110 as its netstack radio, so the SoC's own 802.15.4
+### driver is neither used nor buildable there: it refers to radio timing
+### macros that nrf52840-def.h defines in terms of the LoRa modulation.
+ifneq ($(BOARD), wm1110-dk)
+  CONTIKI_CPU_SOURCEFILES += nrf52840-ieee.c
+endif
 
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 
@@ -85,6 +98,7 @@ NRF52_SDK_C_SRCS += components/boards/boards.c \
   modules/nrfx/drivers/src/nrfx_gpiote.c \
   modules/nrfx/drivers/src/nrfx_rng.c \
   modules/nrfx/drivers/src/nrfx_wdt.c \
+  modules/nrfx/drivers/src/nrfx_spim.c \
   modules/nrfx/drivers/src/nrfx_power.c \
   modules/nrfx/mdk/system_nrf52840.c \
   integration/nrfx/legacy/nrf_drv_clock.c \
@@ -140,6 +154,9 @@ else
 	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --sectorerase --verify --program $<
 	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --reset
 endif
+
+%.bin: $(OUT_BIN)
+	@echo Done
 
 # Upload to all attached boards
 # This approach is similar to the sky platform
