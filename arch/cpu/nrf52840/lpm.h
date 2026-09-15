@@ -52,16 +52,16 @@
  *
  */
 static inline void
-lpm_drop(void)
+lpm_drop(uint8_t deep_lpm)
 {
   int_master_status_t status;
   int abort;
   status = critical_enter();
   abort = process_nevents();
   if(!abort) {
-    ENERGEST_SWITCH(ENERGEST_TYPE_CPU, ENERGEST_TYPE_LPM);
+    ENERGEST_SWITCH(ENERGEST_TYPE_CPU, deep_lpm ? ENERGEST_TYPE_DEEP_LPM : ENERGEST_TYPE_LPM);
     __WFI();
-    ENERGEST_SWITCH(ENERGEST_TYPE_LPM, ENERGEST_TYPE_CPU);
+    ENERGEST_SWITCH(deep_lpm ? ENERGEST_TYPE_DEEP_LPM : ENERGEST_TYPE_LPM, ENERGEST_TYPE_CPU);
   }
   critical_exit(status);
 }

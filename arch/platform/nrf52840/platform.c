@@ -34,11 +34,13 @@
  */
 #include "contiki.h"
 #include "nordic_common.h"
+#include "rtimer-arch.h"
 
 #include "sdk_config.h"
 #include "nrfx_gpiote.h"
 #include "nrf.h"
-
+#include "nrf_drv_power.h"
+#include "nrfx_clock.h"
 #include "contiki-net.h"
 #include "leds.h"
 #include "lib/sensors.h"
@@ -55,13 +57,14 @@
 #include <string.h>
 
 /*---------------------------------------------------------------------------*/
-/* Log configuration */
-#include "sys/log.h"
-#define LOG_MODULE "NRF52DK"
-#define LOG_LEVEL LOG_LEVEL_MAIN
-/*---------------------------------------------------------------------------*/
 /* Nordic semi OUI */
 #define NORDIC_SEMI_VENDOR_OUI 0xF4CE36
+/*---------------------------------------------------------------------------*/
+#if STOP_HFCLK_ON_IDLE_ENABLE
+#define HFLCK_STARTUP_TIME_US 800
+#define HFLCK_STARTUP_TIME_RTIMER_TICKS  (1 + (HFLCK_STARTUP_TIME_US * RTIMER_RTC_FREQ_HZ) / (1000000LU))
+#define MIN_SLEEP_TIME_RTIMER_TICKS (HFLCK_STARTUP_TIME_RTIMER_TICKS * 10)
+#endif
 /*---------------------------------------------------------------------------*/
 static void
 populate_link_address(void)
@@ -89,6 +92,12 @@ populate_link_address(void)
 void
 platform_init_stage_one(void)
 {
+  /* Start the Xtal HFCLK */
+  nrf_clock_event_clear(NRF_CLOCK_EVENT_HFCLKSTARTED);
+  nrf_clock_task_trigger(NRF_CLOCK_TASK_HFCLKSTART);
+  while(!nrf_clock_event_check(NRF_CLOCK_EVENT_HFCLKSTARTED));
+  nrf_clock_event_clear(NRF_CLOCK_EVENT_HFCLKSTARTED);
+
   gpio_hal_init();
   leds_init();
 }
@@ -135,7 +144,37 @@ platform_init_stage_three(void)
 void
 platform_idle()
 {
-  lpm_drop();
+#if NRF_RTIMER_RTC_ENABLE && STOP_HFCLK_ON_IDLE_ENABLE
+  clock_time_t next_etimer;
+  rtimer_clock_t next_schedule = RTIMER_CLOCK_MAX;
+
+  next_schedule = rtimer_arch_time_to_rtimer();
+  if(next_schedule != RTIMER_CLOCK_MAX) {
+    next_schedule = RTIMER_CLOCK_DIFF(next_schedule, RTIMER_NOW());
+    next_etimer = etimer_next_expiration_time();
+    if(next_etimer) {
+      next_schedule = MIN(next_schedule,
+                          RTIMER_CLOCK_DIFF((next_etimer * RTIMER_SECOND) / CLOCK_SECOND, RTIMER_NOW()));
+    }
+    if(next_schedule > MIN_SLEEP_TIME_RTIMER_TICKS) {
+      /* Stop the HFCLK before falling to lpm and start it again when exiting from lpm*/
+      nrf_clock_task_trigger(NRF_CLOCK_TASK_HFCLKSTOP);
+      while(nrf_clock_hf_is_running(NRF_CLOCK_HFCLK_HIGH_ACCURACY));
+      rtimer_arch_preschedule(RTIMER_CLOCK_DIFF(next_schedule, HFLCK_STARTUP_TIME_RTIMER_TICKS));
+      lpm_drop(1);
+      nrf_clock_event_clear(NRF_CLOCK_EVENT_HFCLKSTARTED);
+      nrf_clock_task_trigger(NRF_CLOCK_TASK_HFCLKSTART);
+      while(!nrf_clock_event_check(NRF_CLOCK_EVENT_HFCLKSTARTED));
+      nrf_clock_event_clear(NRF_CLOCK_EVENT_HFCLKSTARTED);
+    } else {
+      lpm_drop(0);
+    }
+  } else {
+    lpm_drop(0);
+  }
+#else
+  lpm_drop(0);
+#endif
 }
 /*---------------------------------------------------------------------------*/
 /**
