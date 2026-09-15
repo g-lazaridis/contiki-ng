@@ -66,6 +66,12 @@
 #ifndef TSCH_DEBUG_RX_EVENT
 #define TSCH_DEBUG_RX_EVENT()
 #endif
+#ifndef TSCH_DEBUG_RX_EVENT_OFF
+#define TSCH_DEBUG_RX_EVENT_OFF()
+#endif
+#ifndef TSCH_DEBUG_TX_EVENT_OFF
+#define TSCH_DEBUG_TX_EVENT_OFF()
+#endif
 #ifndef TSCH_DEBUG_TX_EVENT
 #define TSCH_DEBUG_TX_EVENT()
 #endif
@@ -780,7 +786,7 @@ PT_THREAD(tsch_tx_slot(struct pt *pt, struct rtimer *t))
     process_poll(&tsch_pending_events_process);
   }
 
-  TSCH_DEBUG_TX_EVENT();
+  TSCH_DEBUG_TX_EVENT_OFF();
 
   PT_END(pt);
 }
@@ -1027,7 +1033,7 @@ PT_THREAD(tsch_rx_slot(struct pt *pt, struct rtimer *t))
     }
   }
 
-  TSCH_DEBUG_RX_EVENT();
+  TSCH_DEBUG_RX_EVENT_OFF();
 
   PT_END(pt);
 }
