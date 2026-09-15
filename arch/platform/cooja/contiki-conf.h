@@ -109,8 +109,30 @@ typedef unsigned short uip_stats_t;
 
 /* 1 len byte, 2 bytes CRC */
 #define RADIO_PHY_OVERHEAD         3
+
+/* A project may emulate a LoRa PHY in Cooja by defining
+ * COOJA_CONF_LORA_PHY in its project-conf.h. This slows the simulated radio
+ * down to LoRa air times and swaps in the matching long TSCH timeslot
+ * template. Left undefined, Cooja keeps the default IEEE 802.15.4 behaviour
+ * so that the stock examples and the regression tests are unaffected. */
+#ifdef COOJA_CONF_LORA_PHY
+
+/* SF5, 125 kHz bandwidth, CR 4/5. One byte = 512us */
+#define RADIO_BYTE_AIR_TIME      512
+#ifndef TSCH_CONF_DEFAULT_TIMESLOT_TIMING
+#define TSCH_CONF_DEFAULT_TIMESLOT_TIMING lora_sim_tsch_timing
+#endif /* TSCH_CONF_DEFAULT_TIMESLOT_TIMING */
+#ifndef TSCH_CONF_ARCH_HDR_PATH
+#define TSCH_CONF_ARCH_HDR_PATH "lora-sim-tsch-timing.h"
+#endif /* TSCH_CONF_ARCH_HDR_PATH */
+
+#else /* COOJA_CONF_LORA_PHY */
+
 /* 250kbps data rate. One byte = 32us */
 #define RADIO_BYTE_AIR_TIME       32
+
+#endif /* COOJA_CONF_LORA_PHY */
+
 #define RADIO_DELAY_BEFORE_TX 0
 #define RADIO_DELAY_BEFORE_RX 0
 #define RADIO_DELAY_BEFORE_DETECT 0
