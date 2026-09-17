@@ -45,8 +45,10 @@
 /********** Includes **********/
 
 #include "net/mac/tsch/tsch-asn.h"
+#include "net/mac/tsch/tsch-const.h"
 #include "lib/list.h"
 #include "lib/ringbufindex.h"
+#include "net/mac/tsch/tsch-conf.h"
 
 /********** Data types **********/
 
@@ -138,11 +140,17 @@ enum tsch_timeslot_timing_elements {
   tsch_ts_elements_count, /* Not a timing element */
 };
 
+#if TSCH_CONF_EXTEND_TS_SIZE
+typedef uint32_t tsch_timing_t;
+#else
+typedef uint16_t tsch_timing_t;
+#endif /* TSCH_CONF_EXTEND_TS_SIZE */
+
 /** \brief TSCH timeslot timing elements in rtimer ticks */
 typedef rtimer_clock_t tsch_timeslot_timing_ticks[tsch_ts_elements_count];
 
 /** \brief TSCH timeslot timing elements in micro-seconds */
-typedef uint16_t tsch_timeslot_timing_usec[tsch_ts_elements_count];
+typedef tsch_timing_t tsch_timeslot_timing_usec[tsch_ts_elements_count];
 
 /** \brief Stores data about an incoming packet */
 struct input_packet {

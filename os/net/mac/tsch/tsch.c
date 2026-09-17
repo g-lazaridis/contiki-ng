@@ -94,9 +94,9 @@ uint8_t tsch_hopping_sequence[TSCH_HOPPING_SEQUENCE_MAX_LEN];
 struct tsch_asn_divisor_t tsch_hopping_sequence_length;
 
 /* Default TSCH timeslot timing (in micro-second) */
-static const uint16_t *tsch_default_timing_us;
+static const tsch_timing_t *tsch_default_timing_us;
 /* TSCH timeslot timing (in micro-second) */
-uint16_t tsch_timing_us[tsch_ts_elements_count];
+tsch_timing_t tsch_timing_us[tsch_ts_elements_count];
 /* TSCH timeslot timing (in rtimer ticks) */
 rtimer_clock_t tsch_timing[tsch_ts_elements_count];
 
@@ -1000,11 +1000,13 @@ tsch_init(void)
 
   rtimer_clock_t t;
 
+#if TSCH_DYNAMIC_TIMESLOT_TEMPLATE
   /* Check that the platform provides a TSCH timeslot timing template */
   if(TSCH_DEFAULT_TIMESLOT_TIMING == NULL) {
     LOG_ERR("! platform does not provide a timeslot timing template.\n");
     return;
   }
+#endif
 
   /* Check that the radio can correctly report its max supported payload */
   if(NETSTACK_RADIO.get_value(RADIO_CONST_MAX_PAYLOAD_LEN, &radio_max_payload_len) != RADIO_RESULT_OK) {

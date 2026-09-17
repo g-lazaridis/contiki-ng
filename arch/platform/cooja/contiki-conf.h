@@ -54,8 +54,6 @@
 #define EEPROM_CONF_SIZE				1024
 #endif
 
-#define w_memcpy memcpy
-
 #ifdef NETSTACK_CONF_H
 
 /* These header overrides the below default configuration */
@@ -99,27 +97,42 @@
 #endif /* NETSTACK_CONF_WITH_IPV6 */
 
 #define CC_CONF_VA_ARGS                1
-#define CC_CONF_INLINE inline
 
-/* These names are deprecated, use C99 names. */
 #include <inttypes.h>
-typedef uint8_t u8_t;
-typedef uint16_t u16_t;
-typedef uint32_t u32_t;
-typedef int32_t s32_t;
 
 typedef unsigned short uip_stats_t;
 
 #define CLOCK_CONF_SECOND 1000L
-typedef unsigned long clock_time_t;
 
 /* Use 64-bit rtimer (default in Contiki-NG is 32) */
 #define RTIMER_CONF_CLOCK_SIZE 8
 
 /* 1 len byte, 2 bytes CRC */
 #define RADIO_PHY_OVERHEAD         3
+
+/* A project may emulate a LoRa PHY in Cooja by defining
+ * COOJA_CONF_LORA_PHY in its project-conf.h. This slows the simulated radio
+ * down to LoRa air times and swaps in the matching long TSCH timeslot
+ * template. Left undefined, Cooja keeps the default IEEE 802.15.4 behaviour
+ * so that the stock examples and the regression tests are unaffected. */
+#ifdef COOJA_CONF_LORA_PHY
+
+/* SF5, 125 kHz bandwidth, CR 4/5. One byte = 512us */
+#define RADIO_BYTE_AIR_TIME      512
+#ifndef TSCH_CONF_DEFAULT_TIMESLOT_TIMING
+#define TSCH_CONF_DEFAULT_TIMESLOT_TIMING lora_sim_tsch_timing
+#endif /* TSCH_CONF_DEFAULT_TIMESLOT_TIMING */
+#ifndef TSCH_CONF_ARCH_HDR_PATH
+#define TSCH_CONF_ARCH_HDR_PATH "lora-sim-tsch-timing.h"
+#endif /* TSCH_CONF_ARCH_HDR_PATH */
+
+#else /* COOJA_CONF_LORA_PHY */
+
 /* 250kbps data rate. One byte = 32us */
 #define RADIO_BYTE_AIR_TIME       32
+
+#endif /* COOJA_CONF_LORA_PHY */
+
 #define RADIO_DELAY_BEFORE_TX 0
 #define RADIO_DELAY_BEFORE_RX 0
 #define RADIO_DELAY_BEFORE_DETECT 0

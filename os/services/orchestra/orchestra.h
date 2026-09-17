@@ -57,8 +57,11 @@ struct orchestra_rule {
 extern struct orchestra_rule eb_per_time_source;
 extern struct orchestra_rule unicast_per_neighbor_rpl_storing;
 extern struct orchestra_rule unicast_per_neighbor_rpl_ns;
+extern struct orchestra_rule unicast_per_non_root_neighbor;
 extern struct orchestra_rule unicast_per_neighbor_link_based;
 extern struct orchestra_rule special_for_root;
+extern struct orchestra_rule special_for_root_always_on;
+extern struct orchestra_rule special_for_root_even_rx_slots;
 extern struct orchestra_rule default_common;
 
 extern linkaddr_t orchestra_parent_linkaddr;

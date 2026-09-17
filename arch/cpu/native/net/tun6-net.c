@@ -51,6 +51,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
+/*---------------------------------------------------------------------------*/
 /* Log configuration */
 #include "sys/log.h"
 #define LOG_MODULE "Tun6"
@@ -69,8 +70,6 @@ static const char *config_ipaddr = "fd00::1/64";
 /* Allocate some bytes in RAM and copy the string */
 static char config_tundev[IFNAMSIZ + 1] = "tun0";
 
-
-#ifndef __CYGWIN__
 static int tunfd = -1;
 
 static int set_fd(fd_set *rset, fd_set *wset);
@@ -79,15 +78,12 @@ static const struct select_callback tun_select_callback = {
   set_fd,
   handle_fd
 };
-#endif /* __CYGWIN__ */
 
-static int ssystem(const char *fmt, ...)
+int ssystem(const char *fmt, ...)
      __attribute__((__format__ (__printf__, 1, 2)));
-static int
-ssystem(const char *fmt, ...) __attribute__((__format__ (__printf__, 1, 2)));
 
 int
-static ssystem(const char *fmt, ...)
+ssystem(const char *fmt, ...)
 {
   char cmd[128];
   va_list ap;
@@ -100,29 +96,58 @@ static ssystem(const char *fmt, ...)
 }
 
 /*---------------------------------------------------------------------------*/
+void
+ifconf_cleanup(const char *dev)
+{
+#define TMPBUFSIZE 128
+  /* Called from signal handler, avoid unsafe functions. */
+  char buf[TMPBUFSIZE];
+  strcpy(buf, "ifconfig ");
+  /* Will not overflow, but null-terminate to avoid spurious warnings. */
+  buf[TMPBUFSIZE - 1] = '\0';
+  strncat(buf, dev, TMPBUFSIZE - strlen(buf) - 1);
+  strncat(buf, " down", TMPBUFSIZE - strlen(buf) - 1);
+  system(buf);
+#ifndef linux
+  system("sysctl -w net.ipv6.conf.all.forwarding=1");
+#endif
+  strcpy(buf, "netstat -nr"
+         " | awk '{ if ($2 == \"");
+  buf[TMPBUFSIZE - 1] = '\0';
+  strncat(buf, dev, TMPBUFSIZE - strlen(buf) - 1);
+  strncat(buf, "\") print \"route delete -net \"$1; }'"
+          " | sh", TMPBUFSIZE - strlen(buf) - 1);
+  system(buf);
+}
+/*---------------------------------------------------------------------------*/
 static void
 cleanup(void)
 {
-  ssystem("ifconfig %s down", config_tundev);
-#ifndef linux
-  ssystem("sysctl -w net.ipv6.conf.all.forwarding=1");
-#endif
-  ssystem("netstat -nr"
-	  " | awk '{ if ($2 == \"%s\") print \"route delete -net \"$1; }'"
-	  " | sh",
-	  config_tundev);
+  ifconf_cleanup(config_tundev);
 }
-
 /*---------------------------------------------------------------------------*/
 static void CC_NORETURN
 sigcleanup(int signo)
 {
-  fprintf(stderr, "signal %d\n", signo);
-  exit(0);			/* exit(0) will call cleanup() */
+  const char *prefix = "signal ";
+  const char *sig =
+    signo == SIGHUP ? "HUP\n" : signo == SIGTERM ? "TERM\n" : "INT\n";
+  write(fileno(stderr), prefix, strlen(prefix));
+  write(fileno(stderr), sig, strlen(sig));
+  cleanup();
+  _exit(0);
 }
-
 /*---------------------------------------------------------------------------*/
-static void
+int
+devopen(const char *dev, int flags)
+{
+  char t[32];
+  strcpy(t, "/dev/");
+  strncat(t, dev, sizeof(t) - 5);
+  return open(t, flags);
+}
+/*---------------------------------------------------------------------------*/
+void
 ifconf(const char *tundev, const char *ipaddr)
 {
 #ifdef linux
@@ -147,7 +172,7 @@ tun_alloc(char *dev, uint16_t devsize)
   struct ifreq ifr;
   int fd, err;
   LOG_INFO("Opening: %s\n", dev);
-  if( (fd = open("/dev/net/tun", O_RDWR)) < 0 ) {
+  if((fd = open("/dev/net/tun", O_RDWR)) < 0) {
     /* Error message handled by caller */
     return -1;
   }
@@ -161,12 +186,11 @@ tun_alloc(char *dev, uint16_t devsize)
   if(*dev != '\0') {
     memcpy(ifr.ifr_name, dev, MIN(sizeof(ifr.ifr_name), devsize));
   }
-  if((err = ioctl(fd, TUNSETIFF, (void *) &ifr)) < 0 ) {
+  if((err = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0) {
     /* Error message handled by caller */
     close(fd);
     return err;
   }
-
   LOG_INFO("Using '%s' vs '%s'\n", dev, ifr.ifr_name);
   strncpy(dev, ifr.ifr_name, MIN(devsize - 1, sizeof(ifr.ifr_name)));
   dev[devsize - 1] = '\0';
@@ -174,14 +198,6 @@ tun_alloc(char *dev, uint16_t devsize)
   return fd;
 }
 #else
-static int
-devopen(const char *dev, int flags)
-{
-  char t[32];
-  strcpy(t, "/dev/");
-  strncat(t, dev, sizeof(t) - 5);
-  return open(t, flags);
-}
 /*---------------------------------------------------------------------------*/
 static int
 tun_alloc(char *dev, uint16_t devsize)
@@ -190,30 +206,17 @@ tun_alloc(char *dev, uint16_t devsize)
   return devopen(dev, O_RDWR);
 }
 #endif
-
-#ifdef __CYGWIN__
-/*wpcap process is used to connect to host interface */
-static void
-tun_init()
-{
-  setvbuf(stdout, NULL, _IOLBF, 0); /* Line buffered output. */
-}
-
-#else
-
-
 /*---------------------------------------------------------------------------*/
 static void
 tun_init()
 {
   setvbuf(stdout, NULL, _IOLBF, 0); /* Line buffered output. */
 
-  LOG_INFO("Initializing tun interface\n");
+  LOG_INFO("Opening tun interface:%s\n", config_tundev);
 
   tunfd = tun_alloc(config_tundev, sizeof(config_tundev));
   if(tunfd == -1) {
     LOG_WARN("Failed to open tun device (you may be lacking permission). Running without network.\n");
-    /* err(1, "failed to allocate tun device ``%s''", config_tundev); */
     return;
   }
 
@@ -230,12 +233,10 @@ tun_init()
   signal(SIGINT, sigcleanup);
   ifconf(config_tundev, config_ipaddr);
 }
-
 /*---------------------------------------------------------------------------*/
 static int
 tun_output(uint8_t *data, int len)
 {
-  /* fprintf(stderr, "*** Writing to tun...%d\n", len); */
   if(tunfd != -1 && write(tunfd, data, len) != len) {
     err(1, "serial_to_tun: write");
   }
@@ -257,7 +258,6 @@ tun_input(unsigned char *data, int maxlen)
   }
   return size;
 }
-
 /*---------------------------------------------------------------------------*/
 static uint8_t
 output(const linkaddr_t *localdest)
@@ -282,7 +282,6 @@ set_fd(fd_set *rset, fd_set *wset)
   FD_SET(tunfd, rset);
   return 1;
 }
-
 /*---------------------------------------------------------------------------*/
 
 static void
@@ -304,7 +303,6 @@ handle_fd(fd_set *rset, fd_set *wset)
     tcpip_input();
   }
 }
-#endif /*  __CYGWIN_ */
 
 static void input(void)
 {
@@ -319,6 +317,4 @@ const struct network_driver tun6_net_driver ={
   input,
   output
 };
-
-
 /*---------------------------------------------------------------------------*/

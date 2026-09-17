@@ -8,6 +8,7 @@ endif
 
 NRFJPROG ?= nrfjprog
 NRFUTIL ?= nrfutil
+OPENOCD ?= openocd
 
 ifeq ($(NRF52840_USE_RTT),1)
   ### Suppress the existing debug I/O in os/lib
@@ -21,13 +22,26 @@ endif
 
 # Boards
 ifeq ($(BOARD), dongle)
-  LDSCRIPT ?= $(CONTIKI_CPU)/ld/nrf52840-bootloader.ld
   CFLAGS += -DBOARD_PCA10059
+  __FLASH ?= 0x1000
+  __FLASH_SIZE ?= 0xff000
+  __RAM ?= 0x20000008
+  __RAM_SIZE ?= 0x3fff8
   NRF52840_NATIVE_USB ?= 1
   NRF52840_USB_DFU_TRIGGER ?= 1
+else ifeq ($(BOARD), wm1110-dk)
+  CFLAGS += -DCUSTOM_BOARD_INC=wm1110-dk
+  __FLASH ?= 0x00000000
+  __FLASH_SIZE ?= 0x100000
+  __RAM ?= 0x20000000
+  __RAM_SIZE ?= 0x40000
+  NRF52840_NATIVE_USB ?= 0
 else
-  LDSCRIPT ?= $(CONTIKI_CPU)/ld/nrf52840.ld
   CFLAGS += -DBOARD_PCA10056
+  __FLASH ?= 0x00000000
+  __FLASH_SIZE ?= 0x100000
+  __RAM ?= 0x20000000
+  __RAM_SIZE ?= 0x40000
   NRF52840_NATIVE_USB ?= 0
   ifeq ($(NRF52840_NATIVE_USB)$(NRF52840_USB_DFU_TRIGGER), 11)
     $(warning "Building for BOARD=dk")
@@ -43,7 +57,13 @@ CONTIKI_CPU_DIRS += . dev rf usb
 ### CPU-dependent source files
 CONTIKI_CPU_SOURCEFILES += clock.c rtimer-arch.c uart0.c dbg.c watchdog.c
 CONTIKI_CPU_SOURCEFILES += int-master.c slip-arch.c gpio-hal-arch.c
-CONTIKI_CPU_SOURCEFILES += nrf52840-ieee.c
+
+### The WM1110 uses the LR1110 as its netstack radio, so the SoC's own 802.15.4
+### driver is neither used nor buildable there: it refers to radio timing
+### macros that nrf52840-def.h defines in terms of the LoRa modulation.
+ifneq ($(BOARD), wm1110-dk)
+  CONTIKI_CPU_SOURCEFILES += nrf52840-ieee.c
+endif
 
 CONTIKI_SOURCEFILES += $(CONTIKI_CPU_SOURCEFILES)
 
@@ -53,11 +73,16 @@ CFLAGS += -DSWI_DISABLE0
 CFLAGS += -DCONFIG_GPIO_AS_PINRESET
 CFLAGS += -mfloat-abi=hard -mfpu=fpv4-sp-d16
 
+LDSCRIPT = $(CONTIKI_CPU)/ld/nrf52840.ld
 LDFLAGS += -mabi=aapcs -mfloat-abi=hard -mfpu=fpv4-sp-d16
 ifeq ($(CLANG),0)
   LDFLAGS += --specs=nano.specs
 endif
 LDFLAGS += -L $(NRF5_SDK_ROOT)/modules/nrfx/mdk
+LDFLAGS += -Wl,--defsym=__flash=$(__FLASH)
+LDFLAGS += -Wl,--defsym=__flash_size=$(__FLASH_SIZE)
+LDFLAGS += -Wl,--defsym=__ram=$(__RAM)
+LDFLAGS += -Wl,--defsym=__ram_size=$(__RAM_SIZE)
 TARGET_LIBFILES += -lc -lnosys
 
 # nRF52 SDK sources
@@ -74,6 +99,7 @@ NRF52_SDK_C_SRCS += components/boards/boards.c \
   modules/nrfx/drivers/src/nrfx_gpiote.c \
   modules/nrfx/drivers/src/nrfx_rng.c \
   modules/nrfx/drivers/src/nrfx_wdt.c \
+  modules/nrfx/drivers/src/nrfx_spim.c \
   modules/nrfx/drivers/src/nrfx_power.c \
   modules/nrfx/mdk/system_nrf52840.c \
   integration/nrfx/legacy/nrf_drv_clock.c \
@@ -126,8 +152,42 @@ endif
 ifeq (, $(shell which $(NRFJPROG)))
 	$(error Could not find nrfjprog "$(NRFJPROG)", please install it)
 else
-	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --sectorerase --program $<
+	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --sectorerase --verify --program $<
 	$(NRFJPROG) -f nrf52 $(NRFJPROG_FLAGS) --reset
+endif
+
+%.bin: $(OUT_BIN)
+	@echo Done
+
+# Upload over SWD using OpenOCD, for boards that carry no J-Link. Select the
+# probe with OPENOCD_INTERFACE, naming any config under OpenOCD's
+# scripts/interface directory:
+#
+#   cmsis-dap    CMSIS-DAP / DAPLink probes, and the Raspberry Pi Debug Probe
+#   stlink-dap   ST-Link driven as a plain DAP. Needs firmware V2J28 or newer,
+#                and is the only ST-Link mode that can clear APPROTECT.
+#   stlink       ST-Link as a high-level adapter. Programs a device that is not
+#                read-back protected, but cannot reach the CTRL-AP, so it
+#                cannot recover a locked one.
+#   jlink        SEGGER probes, if you would rather not use nrfjprog
+#
+# For example:
+#
+#   make TARGET=nrf52840 BOARD=wm1110-dk OPENOCD_INTERFACE=stlink-dap \
+#        node.openocd-upload
+
+OPENOCD_INTERFACE ?= cmsis-dap
+OPENOCD_TARGET ?= nrf52
+OPENOCD_TRANSPORT_CFG ?= -f interface/$(OPENOCD_INTERFACE).cfg -f target/$(OPENOCD_TARGET).cfg
+
+# OpenOCD reads the ELF directly, so this deliberately does not depend on
+# $(OUT_HEX): building that needs srec_cat, which nrfjprog requires but
+# OpenOCD does not.
+%.openocd-upload: $(BUILD_DIR_BOARD)/%.$(TARGET)
+ifeq (, $(shell which $(OPENOCD)))
+	$(error Could not find openocd "$(OPENOCD)", please install it)
+else
+	$(OPENOCD) $(OPENOCD_TRANSPORT_CFG) -c "program $< verify reset exit"
 endif
 
 # Upload to all attached boards
@@ -144,7 +204,7 @@ ifneq ($(filter nrf-upload-sequence,$(MAKECMDGOALS)),)
 endif
 
 nrf-upload-snr.%:
-	$(NRFJPROG) -f nrf52 --snr $* --sectorerase --program $(HEX_FILE)
+	$(NRFJPROG) -f nrf52 --snr $* --sectorerase --verify --program $(HEX_FILE)
 	$(NRFJPROG) -f nrf52 --snr $* --reset
 
 nrf-upload-sequence: $(foreach SNR, $(NRF_SNRS), nrf-upload-snr.$(SNR))
